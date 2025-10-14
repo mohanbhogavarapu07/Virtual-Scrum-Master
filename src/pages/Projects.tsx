@@ -81,7 +81,7 @@ const Projects = () => {
             <Card 
               key={project.id} 
               className="hover:shadow-lg transition-all cursor-pointer"
-              onClick={() => navigate(`/sprint/${project.id}`)}
+              onClick={() => navigate(`/project/${project.id}`)}
             >
               <CardHeader>
                 <div className="flex items-start justify-between">
