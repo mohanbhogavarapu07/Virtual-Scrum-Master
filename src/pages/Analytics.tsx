@@ -16,6 +16,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useApp } from "@/context/AppContext";
+import { FadeIn } from "@/components/ui/fade-in";
 
 const Analytics = () => {
   const { tasks } = useApp();
@@ -59,110 +60,124 @@ const Analytics = () => {
   ];
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-          <p className="text-muted-foreground mt-1">Track team performance and project metrics</p>
-        </div>
+      <div className="space-y-8">
+        <FadeIn>
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight mb-2">Analytics</h1>
+            <p className="text-muted-foreground text-lg">Track team performance and project metrics</p>
+          </div>
+        </FadeIn>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Sprint Burndown</CardTitle>
-              <CardDescription>Current sprint progress vs ideal burndown</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={burndownData}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                  <XAxis dataKey="day" />
-                  <YAxis />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="ideal"
-                    stroke="hsl(var(--muted-foreground))"
-                    strokeDasharray="5 5"
-                    name="Ideal"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="actual"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    name="Actual"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+        <div className="grid gap-6 md:grid-cols-2">
+          <FadeIn delay={0.1}>
+            <Card className="border-none shadow-sm bg-card/50 backdrop-blur-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl">Sprint Burndown</CardTitle>
+                <CardDescription>Current sprint progress vs ideal burndown</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={burndownData}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.05} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="day" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                    <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--popover))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "12px",
+                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)"
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Line
+                      type="monotone"
+                      dataKey="ideal"
+                      stroke="hsl(var(--muted-foreground))"
+                      strokeDasharray="5 5"
+                      strokeWidth={2}
+                      name="Ideal"
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="actual"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={3}
+                      name="Actual"
+                      dot={{ fill: 'hsl(var(--primary))', r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </FadeIn>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Task Distribution</CardTitle>
-              <CardDescription>Overview of all tasks by status</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={taskDistribution}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {taskDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <FadeIn delay={0.2}>
+            <Card className="border-none shadow-sm bg-card/50 backdrop-blur-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl">Task Distribution</CardTitle>
+                <CardDescription>Overview of all tasks by status</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={taskDistribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {taskDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--popover))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "12px",
+                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)"
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </FadeIn>
 
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Team Performance</CardTitle>
-              <CardDescription>Individual member contribution this sprint</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={assigneePerformance}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                  <XAxis dataKey="member" />
-                  <YAxis />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                  />
-                  <Legend />
-                  <Bar dataKey="completed" fill="hsl(var(--primary))" name="Completed" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="inProgress" fill="hsl(var(--accent))" name="In Progress" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <FadeIn delay={0.3} className="md:col-span-2">
+            <Card className="border-none shadow-sm bg-card/50 backdrop-blur-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl">Team Performance</CardTitle>
+                <CardDescription>Individual member contribution this sprint</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={assigneePerformance}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.05} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="member" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                    <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--popover))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "12px",
+                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)"
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar dataKey="completed" fill="hsl(var(--primary))" name="Completed" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="inProgress" fill="hsl(var(--accent))" name="In Progress" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </FadeIn>
         </div>
       </div>
     </DashboardLayout>
