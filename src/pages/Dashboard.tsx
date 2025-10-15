@@ -3,42 +3,49 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Users, Clock, CheckCircle2, TrendingUp, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-
-const velocityData = [
-  { sprint: "Sprint 1", velocity: 32 },
-  { sprint: "Sprint 2", velocity: 38 },
-  { sprint: "Sprint 3", velocity: 45 },
-  { sprint: "Sprint 4", velocity: 42 },
-  { sprint: "Sprint 5", velocity: 50 },
-];
+import { useApp } from "@/context/AppContext";
 
 const Dashboard = () => {
+  const { projects, tasks } = useApp();
+  
+  const completedTasks = tasks.filter(t => t.status === "done").length;
+  const activeSprints = projects.reduce((count, p) => count + p.sprints.filter(s => s.status === "active").length, 0);
+  const totalPoints = tasks.reduce((sum, t) => sum + t.storyPoints, 0);
+  
+  const velocityData = [
+    { sprint: "Sprint 1", velocity: 32 },
+    { sprint: "Sprint 2", velocity: 38 },
+    { sprint: "Sprint 3", velocity: 45 },
+    { sprint: "Sprint 4", velocity: 42 },
+    { sprint: "Sprint 5", velocity: 50 },
+  ];
+
   const stats = [
     {
       title: "Total Projects",
-      value: "12",
-      change: "+2 this month",
+      value: projects.length.toString(),
+      change: `${projects.filter(p => p.status === "active").length} active`,
       icon: Users,
       color: "text-primary",
     },
     {
       title: "Active Sprints",
-      value: "8",
-      change: "Across 5 projects",
+      value: activeSprints.toString(),
+      change: "Across all projects",
       icon: Clock,
       color: "text-accent",
     },
     {
       title: "Completed Tasks",
-      value: "234",
-      change: "+18 this week",
+      value: completedTasks.toString(),
+      change: `${tasks.length - completedTasks} in progress`,
       icon: CheckCircle2,
       color: "text-green-500",
     },
     {
       title: "Team Velocity",
-      value: "50",
-      change: "+8 from last sprint",
+      value: totalPoints.toString(),
+      change: "Total story points",
       icon: TrendingUp,
       color: "text-blue-500",
     },

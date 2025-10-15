@@ -3,6 +3,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plus, MoreVertical } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useApp } from "@/context/AppContext";
+import { Task } from "@/types";
 
 const columns = [
   { id: "todo", title: "To Do", color: "bg-slate-500" },
@@ -11,67 +14,33 @@ const columns = [
   { id: "done", title: "Done", color: "bg-green-500" },
 ];
 
-const tasks = {
-  todo: [
-    {
-      id: 1,
-      title: "Implement user authentication",
-      assignee: "SC",
-      priority: "high",
-      points: 8,
-    },
-    {
-      id: 2,
-      title: "Design payment flow wireframes",
-      assignee: "MR",
-      priority: "medium",
-      points: 5,
-    },
-  ],
-  inprogress: [
-    {
-      id: 3,
-      title: "API endpoint development",
-      assignee: "JW",
-      priority: "high",
-      points: 13,
-    },
-    {
-      id: 4,
-      title: "Database schema optimization",
-      assignee: "DK",
-      priority: "medium",
-      points: 8,
-    },
-  ],
-  review: [
-    {
-      id: 5,
-      title: "Mobile responsive layouts",
-      assignee: "SC",
-      priority: "medium",
-      points: 5,
-    },
-  ],
-  done: [
-    {
-      id: 6,
-      title: "Setup CI/CD pipeline",
-      assignee: "MR",
-      priority: "high",
-      points: 8,
-    },
-    {
-      id: 7,
-      title: "Initial project documentation",
-      assignee: "JW",
-      priority: "low",
-      points: 3,
-    },
-  ],
-};
-
 const SprintBoard = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { getSprint, tasks, updateTask } = useApp();
+  
+  const sprint = getSprint(id || "sprint-1");
+  const sprintTasks = tasks.filter(t => t.sprintId === (id || "sprint-1"));
+  
+  if (!sprint) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-2">Sprint Not Found</h2>
+            <p className="text-muted-foreground mb-4">The sprint you're looking for doesn't exist.</p>
+            <Button onClick={() => navigate("/dashboard")}>Go to Dashboard</Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const groupedTasks = columns.reduce((acc, col) => {
+    acc[col.id] = sprintTasks.filter(task => task.status === col.id);
+    return acc;
+  }, {} as Record<string, Task[]>);
+  
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
@@ -91,7 +60,7 @@ const SprintBoard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Sprint Board</h1>
-            <p className="text-muted-foreground mt-1">Sprint 5 - E-commerce Platform Redesign</p>
+            <p className="text-muted-foreground mt-1">{sprint.name} - {sprint.goal}</p>
           </div>
           <Button className="gap-2">
             <Plus className="w-4 h-4" />
@@ -107,16 +76,16 @@ const SprintBoard = () => {
                   <div className={`w-3 h-3 rounded-full ${column.color}`} />
                   <h3 className="font-semibold">{column.title}</h3>
                   <Badge variant="secondary" className="text-xs">
-                    {tasks[column.id as keyof typeof tasks].length}
+                    {groupedTasks[column.id]?.length || 0}
                   </Badge>
                 </div>
               </div>
 
               <div className="space-y-3">
-                {tasks[column.id as keyof typeof tasks].map((task) => (
+                {groupedTasks[column.id]?.map((task) => (
                   <Card
                     key={task.id}
-                    className="p-4 hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
+                    className="p-4 hover:shadow-md transition-all cursor-pointer"
                   >
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-2">
@@ -130,7 +99,7 @@ const SprintBoard = () => {
                         <Badge className={getPriorityColor(task.priority)}>
                           {task.priority}
                         </Badge>
-                        <span className="text-xs text-muted-foreground">{task.points} pts</span>
+                        <span className="text-xs text-muted-foreground">{task.storyPoints} pts</span>
                       </div>
 
                       <div className="flex items-center gap-2">

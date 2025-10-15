@@ -4,52 +4,22 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Users, Calendar, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-const projects = [
-  {
-    id: 1,
-    name: "E-commerce Platform Redesign",
-    description: "Complete UI/UX overhaul of the customer portal",
-    status: "active",
-    owner: "Sarah Chen",
-    team: 8,
-    sprints: 5,
-    progress: 65,
-  },
-  {
-    id: 2,
-    name: "Mobile App Development",
-    description: "Native iOS and Android application",
-    status: "active",
-    owner: "Michael Roberts",
-    team: 6,
-    sprints: 3,
-    progress: 45,
-  },
-  {
-    id: 3,
-    name: "API Integration",
-    description: "Third-party payment gateway integration",
-    status: "active",
-    owner: "Jessica Williams",
-    team: 4,
-    sprints: 2,
-    progress: 80,
-  },
-  {
-    id: 4,
-    name: "Analytics Dashboard",
-    description: "Real-time business intelligence platform",
-    status: "planning",
-    owner: "David Kumar",
-    team: 5,
-    sprints: 0,
-    progress: 0,
-  },
-];
+import { useApp } from "@/context/AppContext";
 
 const Projects = () => {
   const navigate = useNavigate();
+  const { projects, tasks } = useApp();
+  
+  const getProjectProgress = (projectId: string) => {
+    const projectTasks = tasks.filter(t => {
+      const project = projects.find(p => p.id === projectId);
+      return project?.sprints.some(s => s.id === t.sprintId);
+    });
+    
+    if (projectTasks.length === 0) return 0;
+    const completed = projectTasks.filter(t => t.status === "done").length;
+    return Math.round((completed / projectTasks.length) * 100);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -99,24 +69,24 @@ const Projects = () => {
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Users className="w-4 h-4" />
-                      <span>{project.team} members</span>
+                      <span>{project.teamMembers.length} members</span>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Calendar className="w-4 h-4" />
-                      <span>{project.sprints} sprints</span>
+                      <span>{project.sprints.length} sprints</span>
                     </div>
                   </div>
                   
-                  {project.progress > 0 && (
+                  {getProjectProgress(project.id) > 0 && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Progress</span>
-                        <span className="font-medium">{project.progress}%</span>
+                        <span className="font-medium">{getProjectProgress(project.id)}%</span>
                       </div>
                       <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-primary transition-all"
-                          style={{ width: `${project.progress}%` }}
+                          style={{ width: `${getProjectProgress(project.id)}%` }}
                         />
                       </div>
                     </div>

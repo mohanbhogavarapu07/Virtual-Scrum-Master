@@ -15,32 +15,48 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-
-const burndownData = [
-  { day: "Day 1", ideal: 100, actual: 100 },
-  { day: "Day 2", ideal: 85, actual: 92 },
-  { day: "Day 3", ideal: 70, actual: 85 },
-  { day: "Day 4", ideal: 55, actual: 70 },
-  { day: "Day 5", ideal: 40, actual: 55 },
-  { day: "Day 6", ideal: 25, actual: 40 },
-  { day: "Day 7", ideal: 10, actual: 25 },
-  { day: "Day 8", ideal: 0, actual: 12 },
-];
-
-const teamPerformance = [
-  { member: "Sarah", completed: 45, inProgress: 12 },
-  { member: "Michael", completed: 38, inProgress: 8 },
-  { member: "Jessica", completed: 52, inProgress: 15 },
-  { member: "David", completed: 41, inProgress: 10 },
-];
-
-const taskDistribution = [
-  { name: "Completed", value: 234, color: "hsl(var(--primary))" },
-  { name: "In Progress", value: 45, color: "hsl(var(--accent))" },
-  { name: "Pending", value: 67, color: "hsl(var(--muted))" },
-];
+import { useApp } from "@/context/AppContext";
 
 const Analytics = () => {
+  const { tasks } = useApp();
+  
+  const completedTasks = tasks.filter(t => t.status === "done").length;
+  const inProgressTasks = tasks.filter(t => t.status === "inprogress").length;
+  const todoTasks = tasks.filter(t => t.status === "todo").length;
+  const reviewTasks = tasks.filter(t => t.status === "review").length;
+  
+  const taskDistribution = [
+    { name: "Completed", value: completedTasks, color: "hsl(var(--primary))" },
+    { name: "In Progress", value: inProgressTasks, color: "hsl(var(--accent))" },
+    { name: "Review", value: reviewTasks, color: "hsl(142, 76%, 36%)" },
+    { name: "To Do", value: todoTasks, color: "hsl(var(--muted-foreground))" },
+  ];
+  
+  const assigneePerformance = Object.entries(
+    tasks.reduce((acc, task) => {
+      if (!acc[task.assignee]) {
+        acc[task.assignee] = { completed: 0, inProgress: 0 };
+      }
+      if (task.status === "done") acc[task.assignee].completed++;
+      if (task.status === "inprogress") acc[task.assignee].inProgress++;
+      return acc;
+    }, {} as Record<string, { completed: number; inProgress: number }>)
+  ).map(([member, stats]) => ({
+    member,
+    completed: stats.completed,
+    inProgress: stats.inProgress,
+  }));
+  
+  const burndownData = [
+    { day: "Day 1", ideal: 100, actual: 100 },
+    { day: "Day 2", ideal: 85, actual: 92 },
+    { day: "Day 3", ideal: 70, actual: 85 },
+    { day: "Day 4", ideal: 55, actual: 70 },
+    { day: "Day 5", ideal: 40, actual: 55 },
+    { day: "Day 6", ideal: 25, actual: 40 },
+    { day: "Day 7", ideal: 10, actual: 25 },
+    { day: "Day 8", ideal: 0, actual: 12 },
+  ];
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -125,11 +141,11 @@ const Analytics = () => {
           <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle>Team Performance</CardTitle>
-              <CardDescription>Individual member contribution this month</CardDescription>
+              <CardDescription>Individual member contribution this sprint</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={teamPerformance}>
+                <BarChart data={assigneePerformance}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
                   <XAxis dataKey="member" />
                   <YAxis />
