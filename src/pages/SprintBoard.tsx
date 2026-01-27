@@ -1,25 +1,38 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, MoreVertical } from "lucide-react";
+import { 
+  Plus, 
+  MoreHorizontal, 
+  Clock, 
+  AlertTriangle,
+  GripVertical,
+  Filter,
+  Users
+} from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import { Task } from "@/types";
-import { FadeIn } from "@/components/ui/fade-in";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const columns = [
-  { id: "todo", title: "To Do", color: "bg-slate-500" },
-  { id: "inprogress", title: "In Progress", color: "bg-blue-500" },
-  { id: "review", title: "Review", color: "bg-yellow-500" },
-  { id: "done", title: "Done", color: "bg-green-500" },
+  { id: "todo", title: "To Do", color: "bg-muted-foreground" },
+  { id: "inprogress", title: "In Progress", color: "bg-primary" },
+  { id: "review", title: "Review", color: "bg-warning" },
+  { id: "done", title: "Done", color: "bg-success" },
 ];
 
 const SprintBoard = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getSprint, tasks, updateTask } = useApp();
+  const { getSprint, tasks, updateTask, sprintMetrics } = useApp();
   
   const sprint = getSprint(id || "sprint-1");
   const sprintTasks = tasks.filter(t => t.sprintId === (id || "sprint-1"));
@@ -29,8 +42,8 @@ const SprintBoard = () => {
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
-            <h2 className="text-2xl font-bold mb-2">Sprint Not Found</h2>
-            <p className="text-muted-foreground mb-4">The sprint you're looking for doesn't exist.</p>
+            <h2 className="text-xl font-semibold mb-2">Sprint Not Found</h2>
+            <p className="text-sm text-muted-foreground mb-4">The sprint you're looking for doesn't exist.</p>
             <Button onClick={() => navigate("/dashboard")}>Go to Dashboard</Button>
           </div>
         </div>
@@ -42,95 +55,203 @@ const SprintBoard = () => {
     acc[col.id] = sprintTasks.filter(task => task.status === col.id);
     return acc;
   }, {} as Record<string, Task[]>);
+
+  const getColumnPoints = (columnId: string) => {
+    return groupedTasks[columnId]?.reduce((sum, t) => sum + t.storyPoints, 0) || 0;
+  };
   
-  const getPriorityColor = (priority: string) => {
+  const getPriorityBadge = (priority: string) => {
     switch (priority) {
+      case "critical":
+        return <Badge className="text-2xs bg-destructive/10 text-destructive border-0 px-1.5">Critical</Badge>;
       case "high":
-        return "bg-red-500/10 text-red-500 hover:bg-red-500/20";
+        return <Badge className="text-2xs bg-orange-500/10 text-orange-600 border-0 px-1.5">High</Badge>;
       case "medium":
-        return "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20";
+        return <Badge className="text-2xs bg-warning/10 text-warning border-0 px-1.5">Medium</Badge>;
       case "low":
-        return "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20";
+        return <Badge variant="outline" className="text-2xs px-1.5">Low</Badge>;
       default:
-        return "bg-muted text-muted-foreground";
+        return null;
     }
   };
 
+  const progressPercent = Math.round((sprintMetrics.completedPoints / sprintMetrics.totalPoints) * 100);
+
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        <FadeIn>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold tracking-tight mb-2">Sprint Board</h1>
-              <p className="text-muted-foreground text-lg">{sprint.name} · {sprint.goal}</p>
+      <div className="space-y-4 h-full flex flex-col">
+        {/* Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between flex-shrink-0"
+        >
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-semibold">{sprint.name}</h1>
+              <Badge className="text-2xs bg-primary/10 text-primary border-0">Active</Badge>
             </div>
-            <Button className="gap-2 rounded-xl shadow-sm hover:shadow-md">
+            <p className="text-sm text-muted-foreground">{sprint.goal}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Filter className="w-4 h-4" />
+              Filter
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Users className="w-4 h-4" />
+              Team
+            </Button>
+            <Button size="sm" className="gap-1.5">
               <Plus className="w-4 h-4" />
               Add Task
             </Button>
           </div>
-        </FadeIn>
+        </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Sprint Progress Bar */}
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-card border border-border rounded-lg p-3 flex-shrink-0"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium">Sprint Progress</span>
+              <span className="text-xs text-muted-foreground">
+                {sprintMetrics.completedPoints} / {sprintMetrics.totalPoints} pts completed
+              </span>
+            </div>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span>{sprintMetrics.daysRemaining} days remaining</span>
+              <Badge 
+                className={cn(
+                  "text-2xs border-0",
+                  sprintMetrics.riskStatus === "on-track" ? "bg-success/10 text-success" :
+                  sprintMetrics.riskStatus === "at-risk" ? "bg-warning/10 text-warning" : 
+                  "bg-destructive/10 text-destructive"
+                )}
+              >
+                {sprintMetrics.riskStatus.replace("-", " ")}
+              </Badge>
+            </div>
+          </div>
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPercent}%` }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="h-full bg-primary rounded-full"
+            />
+          </div>
+        </motion.div>
+
+        {/* Kanban Board */}
+        <div className="flex-1 grid grid-cols-4 gap-4 min-h-0">
           {columns.map((column, colIndex) => (
-            <FadeIn key={column.id} delay={colIndex * 0.1}>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between px-1">
-                  <div className="flex items-center gap-2.5">
-                    <div className={`w-2.5 h-2.5 rounded-full ${column.color}`} />
-                    <h3 className="font-semibold text-sm">{column.title}</h3>
-                    <Badge variant="secondary" className="text-xs rounded-lg px-2 bg-muted/50">
-                      {groupedTasks[column.id]?.length || 0}
-                    </Badge>
-                  </div>
+            <motion.div 
+              key={column.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + colIndex * 0.05 }}
+              className="flex flex-col bg-muted/30 rounded-lg overflow-hidden"
+            >
+              {/* Column Header */}
+              <div className="px-3 py-2.5 border-b border-border bg-card flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={cn("w-2 h-2 rounded-full", column.color)} />
+                  <span className="text-sm font-medium">{column.title}</span>
+                  <Badge variant="secondary" className="text-2xs px-1.5">
+                    {groupedTasks[column.id]?.length || 0}
+                  </Badge>
                 </div>
-
-                <div className="space-y-3">
-                  {groupedTasks[column.id]?.map((task, taskIndex) => (
-                    <motion.div
-                      key={task.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: colIndex * 0.1 + taskIndex * 0.05 }}
-                      whileHover={{ scale: 1.02 }}
-                    >
-                      <Card className="p-4 cursor-pointer border-none shadow-sm hover:shadow-md transition-all bg-card/50 backdrop-blur-sm">
-                        <div className="space-y-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-sm font-medium leading-tight text-foreground">{task.title}</p>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 -mr-2 -mt-1 rounded-lg hover:bg-muted">
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <Badge className={`${getPriorityColor(task.priority)} rounded-lg px-2.5 py-0.5 text-xs font-medium border-0`}>
-                              {task.priority}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground font-medium">{task.storyPoints} pts</span>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
-                              {task.assignee}
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    </motion.div>
-                  ))}
-
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-xl transition-all"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add task
-                  </Button>
-                </div>
+                <span className="text-xs text-muted-foreground">{getColumnPoints(column.id)} pts</span>
               </div>
-            </FadeIn>
+
+              {/* Tasks */}
+              <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                {groupedTasks[column.id]?.map((task, taskIndex) => (
+                  <motion.div
+                    key={task.id}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 + colIndex * 0.05 + taskIndex * 0.03 }}
+                    whileHover={{ y: -1 }}
+                    className="bg-card border border-border rounded-md p-3 cursor-pointer hover:shadow-sm transition-all group"
+                  >
+                    {/* Task Header */}
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <p className="text-sm font-medium leading-tight">{task.title}</p>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <MoreHorizontal className="w-3.5 h-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem className="text-xs">Edit Task</DropdownMenuItem>
+                          <DropdownMenuItem className="text-xs">Assign To</DropdownMenuItem>
+                          <DropdownMenuItem className="text-xs">Add Label</DropdownMenuItem>
+                          <DropdownMenuItem className="text-xs text-destructive">Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    {/* Task Tags */}
+                    {task.tags && task.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {task.tags.slice(0, 2).map(tag => (
+                          <Badge key={tag} variant="outline" className="text-2xs px-1.5 py-0">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Task Indicators */}
+                    {(task.isBlocked || (task.daysInProgress && task.daysInProgress > 5)) && (
+                      <div className="flex items-center gap-2 mb-2">
+                        {task.isBlocked && (
+                          <span className="inline-flex items-center gap-1 text-2xs text-destructive">
+                            <AlertTriangle className="w-3 h-3" /> Blocked
+                          </span>
+                        )}
+                        {task.daysInProgress && task.daysInProgress > 5 && (
+                          <span className="inline-flex items-center gap-1 text-2xs text-warning">
+                            <Clock className="w-3 h-3" /> {task.daysInProgress}d
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Task Footer */}
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+                      <div className="flex items-center gap-2">
+                        {getPriorityBadge(task.priority)}
+                        <span className="text-2xs text-muted-foreground">{task.storyPoints} pts</span>
+                      </div>
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-2xs font-semibold text-white">
+                        {task.assignee}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+
+                {/* Add Task Button */}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-muted-foreground hover:text-foreground h-9 text-sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add task
+                </Button>
+              </div>
+            </motion.div>
           ))}
         </div>
       </div>

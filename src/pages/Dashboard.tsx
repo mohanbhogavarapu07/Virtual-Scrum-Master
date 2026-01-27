@@ -1,165 +1,137 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Clock, CheckCircle2, TrendingUp, Bot } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { MetricCard } from "@/components/dashboard/MetricCard";
+import { SprintHealthPanel } from "@/components/dashboard/SprintHealthPanel";
+import { BlockersPanel } from "@/components/dashboard/BlockersPanel";
+import { AIInsightsPanel } from "@/components/dashboard/AIInsightsPanel";
+import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import { TeamWorkloadPanel } from "@/components/dashboard/TeamWorkloadPanel";
 import { useApp } from "@/context/AppContext";
-import { FadeIn } from "@/components/ui/fade-in";
+import { 
+  FolderKanban, 
+  Zap, 
+  AlertTriangle, 
+  Target,
+  TrendingUp,
+  Clock
+} from "lucide-react";
 import { motion } from "framer-motion";
 
 const Dashboard = () => {
-  const { projects, tasks } = useApp();
+  const { projects, tasks, blockers, sprintMetrics } = useApp();
   
-  const completedTasks = tasks.filter(t => t.status === "done").length;
+  const activeProjects = projects.filter(p => p.status === "active").length;
   const activeSprints = projects.reduce((count, p) => count + p.sprints.filter(s => s.status === "active").length, 0);
+  const completedTasks = tasks.filter(t => t.status === "done").length;
   const totalPoints = tasks.reduce((sum, t) => sum + t.storyPoints, 0);
-  
-  const velocityData = [
-    { sprint: "Sprint 1", velocity: 32 },
-    { sprint: "Sprint 2", velocity: 38 },
-    { sprint: "Sprint 3", velocity: 45 },
-    { sprint: "Sprint 4", velocity: 42 },
-    { sprint: "Sprint 5", velocity: 50 },
-  ];
-
-  const stats = [
-    {
-      title: "Total Projects",
-      value: projects.length.toString(),
-      change: `${projects.filter(p => p.status === "active").length} active`,
-      icon: Users,
-      color: "text-primary",
-    },
-    {
-      title: "Active Sprints",
-      value: activeSprints.toString(),
-      change: "Across all projects",
-      icon: Clock,
-      color: "text-accent",
-    },
-    {
-      title: "Completed Tasks",
-      value: completedTasks.toString(),
-      change: `${tasks.length - completedTasks} in progress`,
-      icon: CheckCircle2,
-      color: "text-green-500",
-    },
-    {
-      title: "Team Velocity",
-      value: totalPoints.toString(),
-      change: "Total story points",
-      icon: TrendingUp,
-      color: "text-blue-500",
-    },
-  ];
+  const velocityChange = Math.round(((sprintMetrics.velocity - sprintMetrics.previousVelocity) / sprintMetrics.previousVelocity) * 100);
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        <FadeIn>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold tracking-tight mb-2">Dashboard</h1>
-              <p className="text-muted-foreground text-lg">Welcome back! Here's your project overview.</p>
-            </div>
-            <Button className="gap-2 rounded-xl shadow-sm hover:shadow-md">
-              <Bot className="w-4 h-4" />
-              Ask AI Assistant
-            </Button>
+      <div className="space-y-4">
+        {/* Page Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between"
+        >
+          <div>
+            <h1 className="text-xl font-semibold">Dashboard</h1>
+            <p className="text-sm text-muted-foreground">Sprint 5 · E-commerce Platform Redesign</p>
           </div>
-        </FadeIn>
+        </motion.div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat, index) => (
-            <FadeIn key={stat.title} delay={index * 0.1}>
-              <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
-                <Card className="border-none shadow-sm bg-card/50 backdrop-blur-sm">
-                  <CardHeader className="flex flex-row items-center justify-between pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
-                    <div className={`p-2.5 rounded-xl bg-muted ${stat.color}`}>
-                      <stat.icon className="w-5 h-5" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold tracking-tight mb-1">{stat.value}</div>
-                    <p className="text-sm text-muted-foreground">{stat.change}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </FadeIn>
-          ))}
-        </div>
+        {/* Executive Overview - Metrics Row */}
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"
+        >
+          <MetricCard
+            title="Active Projects"
+            value={activeProjects}
+            subtitle={`${projects.length} total`}
+            icon={FolderKanban}
+            iconColor="text-primary"
+          />
+          <MetricCard
+            title="Active Sprints"
+            value={activeSprints}
+            subtitle="Across all projects"
+            icon={Zap}
+            iconColor="text-accent"
+          />
+          <MetricCard
+            title="Open Blockers"
+            value={blockers.length}
+            change={blockers.length > 0 ? { value: `${blockers.length} require action`, trend: "down" } : undefined}
+            subtitle={blockers.length === 0 ? "All clear" : undefined}
+            icon={AlertTriangle}
+            iconColor="text-warning"
+          />
+          <MetricCard
+            title="Sprint Progress"
+            value={`${Math.round((sprintMetrics.completedPoints / sprintMetrics.totalPoints) * 100)}%`}
+            change={{ 
+              value: `${sprintMetrics.completedPoints}/${sprintMetrics.totalPoints} pts`, 
+              trend: "neutral"
+            }}
+            icon={Target}
+            iconColor="text-success"
+          />
+          <MetricCard
+            title="Team Velocity"
+            value={sprintMetrics.velocity}
+            change={{ 
+              value: `${velocityChange > 0 ? '+' : ''}${velocityChange}%`, 
+              trend: velocityChange >= 0 ? "up" : "down",
+              period: "vs last sprint"
+            }}
+            icon={TrendingUp}
+            iconColor="text-primary"
+          />
+          <MetricCard
+            title="Days Remaining"
+            value={sprintMetrics.daysRemaining}
+            subtitle="Sprint ends Jan 20"
+            icon={Clock}
+            iconColor="text-muted-foreground"
+          />
+        </motion.div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <FadeIn delay={0.4}>
-            <Card className="border-none shadow-sm bg-card/50 backdrop-blur-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl">Sprint Velocity Trend</CardTitle>
-                <CardDescription>Story points completed per sprint</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={velocityData}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.05} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="sprint" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                    <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--popover))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                      }}
-                    />
-                    <Bar dataKey="velocity" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </FadeIn>
+        {/* Main Dashboard Grid */}
+        <div className="grid grid-cols-12 gap-4">
+          {/* Left Column - Sprint Health & Blockers */}
+          <motion.div 
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="col-span-12 lg:col-span-4 space-y-4"
+          >
+            <SprintHealthPanel />
+            <BlockersPanel />
+          </motion.div>
 
-          <FadeIn delay={0.5}>
-            <Card className="border-none shadow-sm bg-card/50 backdrop-blur-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl">AI Insights</CardTitle>
-                <CardDescription>Recent recommendations from your AI assistant</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {[
-                  {
-                    title: "Sprint velocity is increasing",
-                    description: "Your team's velocity has improved by 16% over the last 3 sprints. Consider increasing story point commitments."
-                  },
-                  {
-                    title: "Potential blocker detected",
-                    description: "3 tasks in 'In Progress' for over 5 days. Consider reviewing with the team."
-                  },
-                  {
-                    title: "Sprint planning reminder",
-                    description: "Sprint 6 planning is scheduled for tomorrow at 10:00 AM."
-                  }
-                ].map((insight, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 + index * 0.1 }}
-                    className="flex gap-3 p-4 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors"
-                  >
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Bot className="w-4 h-4 text-primary flex-shrink-0" />
-                    </div>
-                    <div className="space-y-1 flex-1">
-                      <p className="text-sm font-semibold text-foreground">{insight.title}</p>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {insight.description}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
-              </CardContent>
-            </Card>
-          </FadeIn>
+          {/* Center Column - AI Insights */}
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="col-span-12 lg:col-span-4"
+          >
+            <AIInsightsPanel />
+          </motion.div>
+
+          {/* Right Column - Activity & Team */}
+          <motion.div 
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+            className="col-span-12 lg:col-span-4 space-y-4"
+          >
+            <ActivityFeed />
+            <TeamWorkloadPanel />
+          </motion.div>
         </div>
       </div>
     </DashboardLayout>
