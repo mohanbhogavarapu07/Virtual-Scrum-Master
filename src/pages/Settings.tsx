@@ -1,103 +1,220 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { FadeIn } from "@/components/ui/fade-in";
+import { Badge } from "@/components/ui/badge";
+import { motion } from "framer-motion";
+import { useApp } from "@/context/AppContext";
+import { 
+  User, 
+  Bell, 
+  Shield, 
+  Palette, 
+  Zap, 
+  Building,
+  ChevronRight
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const settingSections = [
+  { id: "profile", label: "Profile", icon: User },
+  { id: "notifications", label: "Notifications", icon: Bell },
+  { id: "security", label: "Security", icon: Shield },
+  { id: "appearance", label: "Appearance", icon: Palette },
+  { id: "integrations", label: "Integrations", icon: Zap },
+  { id: "organization", label: "Organization", icon: Building },
+];
 
 const Settings = () => {
+  const { currentUser } = useApp();
+
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        <FadeIn>
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight mb-2">Settings</h1>
-            <p className="text-muted-foreground text-lg">Manage your account and preferences</p>
-          </div>
-        </FadeIn>
+      <div className="space-y-4">
+        {/* Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <h1 className="text-xl font-semibold">Settings</h1>
+          <p className="text-sm text-muted-foreground">Manage your account and preferences</p>
+        </motion.div>
 
-        <div className="grid gap-6">
-          <FadeIn delay={0.1}>
-            <Card className="border-none shadow-sm bg-card/50 backdrop-blur-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl">Profile Information</CardTitle>
-                <CardDescription>Update your personal details</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="grid gap-5 md:grid-cols-2">
-                  <div className="space-y-2.5">
-                    <Label htmlFor="firstName" className="text-sm font-medium">First Name</Label>
-                    <Input id="firstName" defaultValue="John" />
-                  </div>
-                  <div className="space-y-2.5">
-                    <Label htmlFor="lastName" className="text-sm font-medium">Last Name</Label>
-                    <Input id="lastName" defaultValue="Doe" />
-                  </div>
-                </div>
-                <div className="space-y-2.5">
-                  <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-                  <Input id="email" type="email" defaultValue="john.doe@example.com" />
-                </div>
-                <div className="space-y-2.5">
-                  <Label htmlFor="role" className="text-sm font-medium">Role</Label>
-                  <Input id="role" defaultValue="Scrum Master" />
-                </div>
-                <Button className="rounded-xl shadow-sm hover:shadow-md">Save Changes</Button>
-              </CardContent>
-            </Card>
-          </FadeIn>
+        <div className="grid grid-cols-12 gap-4">
+          {/* Sidebar Navigation */}
+          <motion.div 
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="col-span-12 lg:col-span-3"
+          >
+            <div className="bg-card border border-border rounded-lg p-2">
+              {settingSections.map((section, index) => (
+                <button
+                  key={section.id}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors text-left",
+                    index === 0 
+                      ? "bg-primary/10 text-primary" 
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <section.icon className="w-4 h-4" />
+                  {section.label}
+                  <ChevronRight className="w-4 h-4 ml-auto" />
+                </button>
+              ))}
+            </div>
+          </motion.div>
 
-          <FadeIn delay={0.2}>
-            <Card className="border-none shadow-sm bg-card/50 backdrop-blur-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl">Preferences</CardTitle>
-                <CardDescription>Customize your experience</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
-                  <div className="space-y-1">
-                    <Label className="text-sm font-semibold">Email Notifications</Label>
-                    <p className="text-sm text-muted-foreground">Receive email updates about your projects</p>
+          {/* Main Content */}
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="col-span-12 lg:col-span-9 space-y-4"
+          >
+            {/* Profile Section */}
+            <div className="bg-card border border-border rounded-lg">
+              <div className="px-4 py-3 border-b border-border">
+                <h2 className="text-sm font-semibold">Profile Information</h2>
+                <p className="text-xs text-muted-foreground">Update your personal details</p>
+              </div>
+              <div className="p-4 space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xl font-bold text-white">
+                    {currentUser.name.split(' ').map(n => n[0]).join('')}
                   </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
-                  <div className="space-y-1">
-                    <Label className="text-sm font-semibold">AI Suggestions</Label>
-                    <p className="text-sm text-muted-foreground">Get intelligent recommendations from AI assistant</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
-                  <div className="space-y-1">
-                    <Label className="text-sm font-semibold">Sprint Reminders</Label>
-                    <p className="text-sm text-muted-foreground">Reminders for upcoming sprint events</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-              </CardContent>
-            </Card>
-          </FadeIn>
-
-          <FadeIn delay={0.3}>
-            <Card className="border-none shadow-sm bg-card/50 backdrop-blur-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl">Danger Zone</CardTitle>
-                <CardDescription>Irreversible actions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between p-5 border border-destructive/30 rounded-xl bg-destructive/5">
                   <div>
-                    <p className="font-semibold text-foreground">Delete Account</p>
-                    <p className="text-sm text-muted-foreground mt-1">Permanently delete your account and all data</p>
+                    <Button variant="outline" size="sm">Change Avatar</Button>
+                    <p className="text-xs text-muted-foreground mt-1">JPG, PNG up to 5MB</p>
                   </div>
-                  <Button variant="destructive" className="rounded-xl shadow-sm">Delete</Button>
                 </div>
-              </CardContent>
-            </Card>
-          </FadeIn>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName" className="text-xs font-medium">First Name</Label>
+                    <Input id="firstName" defaultValue={currentUser.name.split(' ')[0]} className="h-9" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName" className="text-xs font-medium">Last Name</Label>
+                    <Input id="lastName" defaultValue={currentUser.name.split(' ')[1]} className="h-9" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-xs font-medium">Email</Label>
+                  <Input id="email" type="email" defaultValue={currentUser.email} className="h-9" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role" className="text-xs font-medium">Role</Label>
+                  <div className="flex items-center gap-2">
+                    <Input id="role" defaultValue={currentUser.role.replace('_', ' ')} className="h-9 capitalize" disabled />
+                    <Badge variant="outline" className="text-2xs">Managed by admin</Badge>
+                  </div>
+                </div>
+                <Button size="sm">Save Changes</Button>
+              </div>
+            </div>
+
+            {/* Notifications Section */}
+            <div className="bg-card border border-border rounded-lg">
+              <div className="px-4 py-3 border-b border-border">
+                <h2 className="text-sm font-semibold">Notification Preferences</h2>
+                <p className="text-xs text-muted-foreground">Control how you receive notifications</p>
+              </div>
+              <div className="divide-y divide-border">
+                {[
+                  { 
+                    title: "Email Notifications", 
+                    description: "Receive email updates about your projects",
+                    enabled: true 
+                  },
+                  { 
+                    title: "AI Scrum Master Alerts", 
+                    description: "Get notified about blockers and recommendations",
+                    enabled: true 
+                  },
+                  { 
+                    title: "Sprint Reminders", 
+                    description: "Reminders for upcoming sprint events and standups",
+                    enabled: true 
+                  },
+                  { 
+                    title: "Task Assignments", 
+                    description: "Notifications when tasks are assigned to you",
+                    enabled: false 
+                  },
+                ].map((pref, index) => (
+                  <div key={index} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">{pref.title}</p>
+                      <p className="text-xs text-muted-foreground">{pref.description}</p>
+                    </div>
+                    <Switch defaultChecked={pref.enabled} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* AI Settings */}
+            <div className="bg-card border border-border rounded-lg">
+              <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold">AI Scrum Master Settings</h2>
+                  <p className="text-xs text-muted-foreground">Configure AI assistant behavior</p>
+                </div>
+                <Badge className="text-2xs bg-primary/10 text-primary border-0">AI-Powered</Badge>
+              </div>
+              <div className="divide-y divide-border">
+                {[
+                  { 
+                    title: "Automatic Task Updates", 
+                    description: "Allow AI to automatically update task statuses based on activity",
+                    enabled: true 
+                  },
+                  { 
+                    title: "Blocker Detection", 
+                    description: "AI monitors for potential blockers and alerts you",
+                    enabled: true 
+                  },
+                  { 
+                    title: "Sprint Recommendations", 
+                    description: "Receive AI-generated recommendations for sprint planning",
+                    enabled: true 
+                  },
+                  { 
+                    title: "Standup Summaries", 
+                    description: "AI generates daily standup summaries from team updates",
+                    enabled: false 
+                  },
+                ].map((pref, index) => (
+                  <div key={index} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">{pref.title}</p>
+                      <p className="text-xs text-muted-foreground">{pref.description}</p>
+                    </div>
+                    <Switch defaultChecked={pref.enabled} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Danger Zone */}
+            <div className="bg-card border border-destructive/30 rounded-lg">
+              <div className="px-4 py-3 border-b border-destructive/30">
+                <h2 className="text-sm font-semibold text-destructive">Danger Zone</h2>
+                <p className="text-xs text-muted-foreground">Irreversible actions</p>
+              </div>
+              <div className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Delete Account</p>
+                  <p className="text-xs text-muted-foreground">Permanently delete your account and all data</p>
+                </div>
+                <Button variant="destructive" size="sm">Delete Account</Button>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </div>
     </DashboardLayout>

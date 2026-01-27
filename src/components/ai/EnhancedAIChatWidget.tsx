@@ -2,27 +2,37 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Bot, X, Send, Minimize2, Sparkles } from "lucide-react";
+import { Bot, X, Send, Minimize2, Sparkles, Zap, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useApp } from "@/context/AppContext";
 import { ChatMessage, TaskAction } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+
+const quickActions = [
+  { label: "Sprint status", command: "show sprint progress" },
+  { label: "Blockers", command: "what are the blockers?" },
+  { label: "Recommendations", command: "give me recommendations" },
+  { label: "Team performance", command: "show team performance" },
+];
 
 export const EnhancedAIChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
-      content: "Hello! I'm your AI Scrum Master. I can help you manage tasks, analyze sprint progress, identify blockers, and provide project insights. Try commands like:\n\n• 'Update task [name] to [status]'\n• 'Show sprint progress'\n• 'What are the blockers?'\n• 'Create a task for [description]'",
+      content: "👋 Hi! I'm your AI Scrum Master. I can help you manage tasks, analyze sprint progress, and provide actionable recommendations.\n\nTry asking me about sprint status, blockers, or team performance.",
       role: "assistant",
       timestamp: new Date(),
+      confidence: 0.95,
     },
   ]);
   
-  const { tasks, updateTask, createTask, currentUser } = useApp();
+  const { tasks, updateTask, createTask, currentUser, sprintMetrics, blockers } = useApp();
   const { toast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -32,21 +42,23 @@ export const EnhancedAIChatWidget = () => {
     }
   }, [messages]);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const handleSend = (customInput?: string) => {
+    const messageText = customInput || input;
+    if (!messageText.trim()) return;
 
     const userMessage: ChatMessage = {
       id: `msg-${Date.now()}`,
-      content: input,
+      content: messageText,
       role: "user",
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
+    setIsTyping(true);
 
     setTimeout(() => {
-      const { response, action } = processAICommand(input);
+      const { response, action, confidence, reasoning } = processAICommand(messageText);
       
       const aiMessage: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
@@ -54,17 +66,20 @@ export const EnhancedAIChatWidget = () => {
         role: "assistant",
         timestamp: new Date(),
         action,
+        confidence,
+        reasoning,
       };
       
       setMessages((prev) => [...prev, aiMessage]);
+      setIsTyping(false);
 
       if (action) {
         executeAction(action);
       }
-    }, 800);
+    }, 1000);
   };
 
-  const processAICommand = (query: string): { response: string; action?: TaskAction } => {
+  const processAICommand = (query: string): { response: string; action?: TaskAction; confidence?: number; reasoning?: string } => {
     const lowerQuery = query.toLowerCase();
 
     // Update task status
@@ -76,55 +91,64 @@ export const EnhancedAIChatWidget = () => {
       
       if (task) {
         return {
-          response: `✅ I've updated "${task.title}" to ${newStatus}. The task is now ${newStatus === "done" ? "completed" : "in the " + newStatus + " column"}.`,
+          response: `✅ Updated "${task.title}" to ${newStatus}.\n\nThis change has been reflected in the sprint board.`,
           action: {
             type: "update_task",
             taskId: task.id,
             updates: { status: newStatus },
+            label: `Move to ${newStatus}`,
           },
+          confidence: 0.95,
+          reasoning: "Direct task update request with clear target and status.",
         };
       } else {
         return {
-          response: `❌ I couldn't find a task matching "${taskName}". Please check the task name and try again.`,
+          response: `❌ Couldn't find a task matching "${taskName}". Available tasks:\n\n${tasks.slice(0, 3).map(t => `• ${t.title}`).join('\n')}`,
+          confidence: 0.7,
         };
       }
     }
 
-    // Create new task
-    const createMatch = lowerQuery.match(/create (?:a )?task (?:for )?(.+)/);
-    if (createMatch) {
-      const taskTitle = createMatch[1].trim();
+    // Mark blocker
+    if (lowerQuery.includes("mark") && lowerQuery.includes("blocker")) {
       return {
-        response: `✅ I've created a new task: "${taskTitle}". It's been added to the backlog with medium priority. Would you like to assign it to someone or set a priority?`,
-        action: {
-          type: "create_task",
-        },
+        response: "🚫 I can help you mark a task as blocked. Which task would you like to mark?\n\nCurrent in-progress tasks:\n" + 
+          tasks.filter(t => t.status === "inprogress").map(t => `• ${t.title} (${t.assignee})`).join('\n'),
+        action: { type: "mark_blocker", label: "Mark as Blocked" },
+        confidence: 0.85,
       };
     }
 
     // Sprint progress
     if (lowerQuery.includes("sprint") && (lowerQuery.includes("progress") || lowerQuery.includes("status"))) {
-      const doneTasks = tasks.filter((t) => t.status === "done").length;
-      const totalTasks = tasks.length;
-      const donePoints = tasks.filter((t) => t.status === "done").reduce((sum, t) => sum + t.storyPoints, 0);
-      const totalPoints = tasks.reduce((sum, t) => sum + t.storyPoints, 0);
-      const percentComplete = Math.round((donePoints / totalPoints) * 100);
+      const percentComplete = Math.round((sprintMetrics.completedPoints / sprintMetrics.totalPoints) * 100);
+      const riskEmoji = sprintMetrics.riskStatus === "on-track" ? "✅" : sprintMetrics.riskStatus === "at-risk" ? "⚠️" : "🔴";
 
       return {
-        response: `📊 **Sprint 5 Progress Report:**\n\n• **Completion:** ${percentComplete}% (${donePoints}/${totalPoints} story points)\n• **Tasks:** ${doneTasks}/${totalTasks} completed\n• **Days Remaining:** 8 days\n• **Velocity:** On track to meet ${totalPoints} point commitment\n\n${percentComplete < 50 ? "⚠️ Sprint is behind schedule. Consider reviewing task complexity." : "✅ Sprint is progressing well!"}`,
+        response: `📊 **Sprint 5 Status Report**\n\n**Progress:** ${percentComplete}% complete\n• Completed: ${sprintMetrics.completedPoints} pts\n• Remaining: ${sprintMetrics.remainingPoints} pts\n• Days left: ${sprintMetrics.daysRemaining}\n\n**Status:** ${riskEmoji} ${sprintMetrics.riskStatus.replace("-", " ").toUpperCase()}\n\n**Velocity:** ${sprintMetrics.velocity} pts (↑${Math.round(((sprintMetrics.velocity - sprintMetrics.previousVelocity) / sprintMetrics.previousVelocity) * 100)}% vs last sprint)\n\n${sprintMetrics.riskStatus !== "on-track" ? "**⚠️ Recommendation:** Consider rebalancing tasks or addressing blockers to get back on track." : "**✅ Great job!** The team is on track to meet sprint goals."}`,
+        confidence: 0.98,
+        reasoning: "Comprehensive sprint analysis based on current metrics.",
       };
     }
 
     // Show blockers
     if (lowerQuery.includes("blocker") || lowerQuery.includes("stuck") || lowerQuery.includes("issue")) {
-      const inProgressTasks = tasks.filter((t) => t.status === "inprogress");
-      if (inProgressTasks.length === 0) {
-        return { response: "✅ No blockers detected! All tasks are flowing smoothly." };
+      if (blockers.length === 0) {
+        return { 
+          response: "✅ **No blockers detected!**\n\nAll tasks are flowing smoothly through the sprint. Great teamwork!",
+          confidence: 0.95,
+        };
       }
       
-      const blockerList = inProgressTasks.map((t) => `• ${t.title} (${t.assignee}) - In progress for 5+ days`).join("\n");
+      const blockerList = blockers.map((b) => 
+        `• **${b.taskTitle}** (${b.assignee})\n  └ ${b.reason}\n  └ Blocked for ${b.daysBlocked} days | Severity: ${b.severity}`
+      ).join("\n\n");
+      
       return {
-        response: `⚠️ **Potential Blockers Detected:**\n\n${blockerList}\n\nWould you like me to notify the team leads or schedule a sync meeting?`,
+        response: `⚠️ **${blockers.length} Active Blocker${blockers.length > 1 ? 's' : ''}:**\n\n${blockerList}\n\n**Suggested Actions:**\n• Schedule a sync meeting with affected team members\n• Consider reassigning tasks to unblock dependencies\n• Escalate high-severity blockers to management`,
+        action: { type: "rebalance", label: "Rebalance Sprint" },
+        confidence: 0.92,
+        reasoning: "Blockers detected that may impact sprint completion.",
       };
     }
 
@@ -132,32 +156,51 @@ export const EnhancedAIChatWidget = () => {
     if (lowerQuery.includes("team") || lowerQuery.includes("performance") || lowerQuery.includes("member")) {
       const assigneeStats = tasks.reduce((acc, task) => {
         if (!acc[task.assignee]) {
-          acc[task.assignee] = { done: 0, total: 0 };
+          acc[task.assignee] = { done: 0, total: 0, points: 0 };
         }
         acc[task.assignee].total++;
+        acc[task.assignee].points += task.storyPoints;
         if (task.status === "done") acc[task.assignee].done++;
         return acc;
-      }, {} as Record<string, { done: number; total: number }>);
+      }, {} as Record<string, { done: number; total: number; points: number }>);
 
       const stats = Object.entries(assigneeStats)
-        .map(([name, { done, total }]) => `• **${name}**: ${done}/${total} tasks completed`)
+        .map(([name, { done, total, points }]) => 
+          `• **${name}**: ${done}/${total} tasks (${points} pts) ${done === total ? '✅' : ''}`
+        )
         .join("\n");
 
       return {
-        response: `👥 **Team Performance:**\n\n${stats}\n\nAll team members are contributing actively. Great teamwork! 🎉`,
+        response: `👥 **Team Performance - Sprint 5**\n\n${stats}\n\n**Summary:**\n• Team is working collaboratively\n• ${Object.values(assigneeStats).filter(s => s.done === s.total).length} members have completed all assigned tasks\n• Consider load balancing for next sprint`,
+        confidence: 0.9,
       };
     }
 
     // Recommendations
     if (lowerQuery.includes("recommend") || lowerQuery.includes("suggest") || lowerQuery.includes("advice")) {
       return {
-        response: `💡 **AI Recommendations:**\n\n1. **Sprint Velocity**: Team velocity has increased 16% - consider raising story point commitments next sprint\n\n2. **Code Reviews**: Tasks in review column are staying 2+ days - add more reviewers or schedule review sessions\n\n3. **High Priority Tasks**: 2 high-priority tasks in backlog - recommend pulling into current sprint\n\n4. **Team Balance**: Consider redistributing work - some members are at capacity`,
+        response: `💡 **AI Recommendations for Sprint 5:**\n\n**1. Address Blockers (Priority: High)**\nTwo tasks are currently blocked. Resolving these could unblock 13 story points.\n\n**2. Sprint Velocity Opportunity**\nVelocity increased 18% - consider increasing story point commitment next sprint by 5-8 points.\n\n**3. Workload Rebalancing**\nJW has heavy workload (16 pts). Consider redistributing to MR or AL who have capacity.\n\n**4. Code Review Bottleneck**\nAverage time in review is 3.2 days. Add more reviewers or schedule daily review sessions.`,
+        action: { type: "rebalance", label: "Apply Recommendations" },
+        confidence: 0.88,
+        reasoning: "Based on current sprint metrics, blockers, and team performance data.",
       };
     }
 
-    // Default intelligent response
+    // Create task
+    const createMatch = lowerQuery.match(/create (?:a )?task (?:for )?(.+)/);
+    if (createMatch) {
+      const taskTitle = createMatch[1].trim();
+      return {
+        response: `✅ Created new task: "${taskTitle}"\n\n• Added to backlog\n• Priority: Medium\n• Story Points: 3\n\nWould you like me to assign it to someone or adjust the priority?`,
+        action: { type: "create_task", label: "Create Task" },
+        confidence: 0.9,
+      };
+    }
+
+    // Default response
     return {
-      response: `I understand you're asking about "${query}". I can help with:\n\n• **Task Management**: Update, create, or assign tasks\n• **Sprint Analytics**: Progress, velocity, burndown\n• **Team Insights**: Performance metrics, workload distribution\n• **Blockers**: Identify and resolve impediments\n\nTry a specific command or ask me a question!`,
+      response: `I can help you with:\n\n• **Sprint Management**: "Show sprint progress", "What's our velocity?"\n• **Blockers**: "What are the blockers?", "Mark task as blocker"\n• **Team Insights**: "Show team performance", "Who has capacity?"\n• **Recommendations**: "Give me recommendations", "How can we improve?"\n• **Task Actions**: "Update task X to done", "Create task for Y"\n\nWhat would you like to know?`,
+      confidence: 0.6,
     };
   };
 
@@ -166,10 +209,9 @@ export const EnhancedAIChatWidget = () => {
       updateTask(action.taskId, action.updates);
       toast({
         title: "Task Updated",
-        description: "The task has been successfully updated by AI.",
+        description: "Task status updated by AI Scrum Master.",
       });
     } else if (action.type === "create_task") {
-      // Create a basic task
       createTask({
         title: "New AI-suggested task",
         description: "Task created by AI assistant",
@@ -181,7 +223,7 @@ export const EnhancedAIChatWidget = () => {
       });
       toast({
         title: "Task Created",
-        description: "A new task has been added to the backlog.",
+        description: "New task added to the backlog.",
       });
     }
   };
@@ -190,85 +232,133 @@ export const EnhancedAIChatWidget = () => {
     return (
       <Button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all z-50 bg-gradient-to-r from-primary to-accent"
+        className="fixed bottom-4 right-4 h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all z-50 bg-gradient-to-r from-primary to-accent"
         size="icon"
       >
-        <Bot className="w-6 h-6" />
-        <Sparkles className="w-3 h-3 absolute -top-1 -right-1 text-yellow-400" />
+        <Bot className="w-5 h-5" />
+        {blockers.length > 0 && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive rounded-full text-2xs font-bold flex items-center justify-center text-white">
+            {blockers.length}
+          </span>
+        )}
       </Button>
     );
   }
 
   return (
-    <Card className={`fixed bottom-6 right-6 w-96 shadow-2xl z-50 transition-all ${isMinimized ? 'h-16' : 'h-[600px]'} flex flex-col border-2 border-primary/20`}>
-      <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-primary to-accent">
+    <Card className={cn(
+      "fixed bottom-4 right-4 w-96 shadow-xl z-50 transition-all flex flex-col border border-border",
+      isMinimized ? 'h-14' : 'h-[500px]'
+    )}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-primary to-accent rounded-t-lg">
         <div className="flex items-center gap-2">
-          <Bot className="w-5 h-5 text-white" />
-          <h3 className="font-semibold text-white">AI Scrum Master</h3>
-          <Badge variant="secondary" className="bg-white/20 text-white text-xs">Beta</Badge>
+          <Bot className="w-4 h-4 text-white" />
+          <span className="text-sm font-semibold text-white">AI Scrum Master</span>
+          <Badge className="bg-white/20 text-white text-2xs border-0">Beta</Badge>
         </div>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsMinimized(!isMinimized)}
-            className="h-8 w-8 text-white hover:bg-white/20"
+            className="h-7 w-7 text-white hover:bg-white/20"
           >
-            <Minimize2 className="w-4 h-4" />
+            <Minimize2 className="w-3.5 h-3.5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsOpen(false)}
-            className="h-8 w-8 text-white hover:bg-white/20"
+            className="h-7 w-7 text-white hover:bg-white/20"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </Button>
         </div>
       </div>
 
       {!isMinimized && (
         <>
-          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-            <div className="space-y-4">
+          {/* Messages */}
+          <ScrollArea className="flex-1 p-3" ref={scrollRef}>
+            <div className="space-y-3">
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                  className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}
                 >
                   <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                    className={cn(
+                      "max-w-[85%] rounded-lg px-3 py-2",
                       message.role === "user"
-                        ? "bg-primary text-white"
-                        : "bg-muted text-foreground border border-border"
-                    }`}
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
+                    )}
                   >
                     <p className="text-sm whitespace-pre-line">{message.content}</p>
-                    <p className="text-xs opacity-60 mt-1">
-                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
+                    {message.action && (
+                      <Button 
+                        size="sm" 
+                        variant={message.role === "user" ? "secondary" : "outline"}
+                        className="mt-2 h-7 text-xs gap-1"
+                      >
+                        <Zap className="w-3 h-3" />
+                        {message.action.label}
+                      </Button>
+                    )}
+                    {message.confidence && message.role === "assistant" && (
+                      <div className="flex items-center gap-1 mt-2 text-2xs text-muted-foreground">
+                        <span>Confidence: {Math.round(message.confidence * 100)}%</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-muted rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" />
+                      <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                      <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </ScrollArea>
 
-          <div className="p-4 border-t border-border bg-background">
+          {/* Quick Actions */}
+          <div className="px-3 py-2 border-t border-border">
+            <div className="flex flex-wrap gap-1.5">
+              {quickActions.map((action) => (
+                <Button
+                  key={action.label}
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-2xs px-2"
+                  onClick={() => handleSend(action.command)}
+                >
+                  {action.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Input */}
+          <div className="p-3 border-t border-border">
             <div className="flex gap-2">
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleSend()}
                 placeholder="Ask AI or give a command..."
-                className="flex-1"
+                className="flex-1 h-9 text-sm"
               />
-              <Button onClick={handleSend} size="icon" className="flex-shrink-0">
+              <Button onClick={() => handleSend()} size="icon" className="h-9 w-9">
                 <Send className="w-4 h-4" />
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              💡 Try: "Update task API to done" or "Show sprint progress"
-            </p>
           </div>
         </>
       )}
