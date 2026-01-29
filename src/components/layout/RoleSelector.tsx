@@ -1,70 +1,61 @@
-import { User } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { useApp } from "@/context/AppContext";
+import { UserRole } from "@/types";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuTrigger,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { useApp } from "@/context/AppContext";
-import { UserRole } from "@/types";
+import { ChevronDown, Shield, Users, Code, TestTube, UserCog } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const roleLabels: Record<UserRole, string> = {
-  admin: "Admin",
-  manager: "Manager",
-  employee: "Employee",
-};
-
-const roleColors: Record<UserRole, string> = {
-  admin: "bg-red-500/10 text-red-500",
-  manager: "bg-blue-500/10 text-blue-500",
-  employee: "bg-green-500/10 text-green-500",
-};
+const roles: { value: UserRole; label: string; icon: React.ElementType }[] = [
+  { value: "admin", label: "Admin", icon: Shield },
+  { value: "manager", label: "Manager", icon: UserCog },
+  { value: "scrum_master", label: "Scrum Master", icon: Users },
+  { value: "developer", label: "Developer", icon: Code },
+  { value: "tester", label: "Tester", icon: TestTube },
+];
 
 export const RoleSelector = () => {
   const { currentUser, setCurrentUser } = useApp();
+
+  const currentRole = roles.find(r => r.value === currentUser.role);
+  const CurrentIcon = currentRole?.icon || Users;
 
   const handleRoleChange = (role: UserRole) => {
     setCurrentUser({ ...currentUser, role });
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <Badge className={roleColors[currentUser.role]}>
-        {roleLabels[currentUser.role]}
-      </Badge>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <User className="w-5 h-5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 bg-popover">
-          <DropdownMenuLabel>Switch Role (Demo)</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => handleRoleChange("admin")}>
-            <span className="flex items-center gap-2">
-              <Badge className={roleColors.admin}>Admin</Badge>
-              Full access & control
-            </span>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+          <CurrentIcon className="w-3.5 h-3.5" />
+          <span className="capitalize">{currentRole?.label}</span>
+          <ChevronDown className="w-3 h-3" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuLabel className="text-xs">Switch Role</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {roles.map((role) => (
+          <DropdownMenuItem
+            key={role.value}
+            onClick={() => handleRoleChange(role.value)}
+            className={cn(
+              "text-xs gap-2",
+              currentUser.role === role.value && "bg-primary/10 text-primary"
+            )}
+          >
+            <role.icon className="w-3.5 h-3.5" />
+            {role.label}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleRoleChange("manager")}>
-            <span className="flex items-center gap-2">
-              <Badge className={roleColors.manager}>Manager</Badge>
-              Manage projects & teams
-            </span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleRoleChange("employee")}>
-            <span className="flex items-center gap-2">
-              <Badge className={roleColors.employee}>Employee</Badge>
-              View & update tasks
-            </span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
