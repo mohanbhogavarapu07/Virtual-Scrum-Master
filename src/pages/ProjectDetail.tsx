@@ -1,45 +1,61 @@
-import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { useParams } from "react-router-dom";
-import { useApp } from "@/context/AppContext";
-import { Users, Calendar, TrendingUp, Plus, Package } from "lucide-react";
-import { EnhancedAIChatWidget } from "@/components/ai/EnhancedAIChatWidget";
+import { useParams, useNavigate } from "react-router-dom";
+import { useProject, useProjectSprints, useProjectMembers, useProjectBacklog } from "@/hooks/useApiHooks";
+import { Users, Calendar, TrendingUp, Plus, Package, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 
 const ProjectDetail = () => {
   const { id } = useParams();
-  const { getProject, tasks } = useApp();
-  const project = getProject(id || "1");
+  const navigate = useNavigate();
+  const projectId = Number(id);
 
-  if (!project) {
-    return <DashboardLayout><div>Project not found</div></DashboardLayout>;
+  const { data: project, isLoading: projLoading } = useProject(projectId);
+  const { data: sprints = [], isLoading: sprintsLoading } = useProjectSprints(projectId);
+  const { data: members = [] } = useProjectMembers(projectId);
+  const { data: backlog = [] } = useProjectBacklog(projectId);
+
+  if (projLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
   }
 
-  const projectTasks = tasks.filter(t => 
-    project.sprints.some(s => s.id === t.sprintId)
-  );
-
-  const completedTasks = projectTasks.filter(t => t.status === "done").length;
-  const totalTasks = projectTasks.length;
-  const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  if (!project) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold mb-2">Project Not Found</h2>
+            <Button onClick={() => navigate("/projects")}>Back to Projects</Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-start justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-start justify-between"
+        >
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{project.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{project.project_name}</h1>
             <p className="text-muted-foreground mt-1">{project.description}</p>
           </div>
-          <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20">
-            {project.status}
-          </Badge>
-        </div>
+        </motion.div>
 
         {/* Quick Stats */}
         <div className="grid gap-4 md:grid-cols-4">
@@ -49,108 +65,48 @@ const ProjectDetail = () => {
               <Users className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{project.teamMembers.length}</div>
+              <div className="text-2xl font-bold">{members.length}</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium">Active Sprints</CardTitle>
+              <CardTitle className="text-sm font-medium">Sprints</CardTitle>
               <Calendar className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{project.sprints.length}</div>
+              <div className="text-2xl font-bold">{sprints.length}</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium">Progress</CardTitle>
-              <TrendingUp className="w-4 h-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{progress}%</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium">Releases</CardTitle>
+              <CardTitle className="text-sm font-medium">Backlog Items</CardTitle>
               <Package className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{project.releases.length}</div>
+              <div className="text-2xl font-bold">{backlog.length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium">Duration</CardTitle>
+              <TrendingUp className="w-4 h-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm font-medium">
+                {project.start_date ? new Date(project.start_date).toLocaleDateString() : "—"} →{" "}
+                {project.end_date ? new Date(project.end_date).toLocaleDateString() : "—"}
+              </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="overview" className="space-y-4">
+        <Tabs defaultValue="sprints" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="sprints">Sprints</TabsTrigger>
-            <TabsTrigger value="releases">Releases</TabsTrigger>
+            <TabsTrigger value="backlog">Backlog</TabsTrigger>
             <TabsTrigger value="team">Team</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="overview" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Project Progress</CardTitle>
-                  <CardDescription>Overall completion status</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Completed Tasks</span>
-                      <span className="font-medium">{completedTasks} / {totalTasks}</span>
-                    </div>
-                    <Progress value={progress} className="h-2" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 pt-4">
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Owner</p>
-                      <p className="font-medium">{project.owner}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Started</p>
-                      <p className="font-medium">{project.createdAt.toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Latest updates and changes</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 rounded-full bg-green-500 mt-2" />
-                      <div className="space-y-1 flex-1">
-                        <p className="text-sm font-medium">Task completed</p>
-                        <p className="text-xs text-muted-foreground">Setup CI/CD pipeline - 2 days ago</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 rounded-full bg-blue-500 mt-2" />
-                      <div className="space-y-1 flex-1">
-                        <p className="text-sm font-medium">Sprint started</p>
-                        <p className="text-xs text-muted-foreground">Sprint 5 began - 8 days ago</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 rounded-full bg-purple-500 mt-2" />
-                      <div className="space-y-1 flex-1">
-                        <p className="text-sm font-medium">Team member added</p>
-                        <p className="text-xs text-muted-foreground">RJ joined the team - 10 days ago</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
 
           <TabsContent value="sprints" className="space-y-4">
             <div className="flex items-center justify-between">
@@ -160,82 +116,79 @@ const ProjectDetail = () => {
                 New Sprint
               </Button>
             </div>
-            <div className="space-y-3">
-              {project.sprints.map((sprint) => (
-                <Card key={sprint.id}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{sprint.name}</CardTitle>
-                        <CardDescription>{sprint.goal}</CardDescription>
+            {sprintsLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : sprints.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No sprints yet. Create your first sprint to get started.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {sprints.map((sprint) => (
+                  <Card
+                    key={sprint.sprint_id}
+                    className="cursor-pointer hover:shadow-md transition-all"
+                    onClick={() => navigate(`/sprint/${sprint.sprint_id}`)}
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-lg">{sprint.sprint_name}</CardTitle>
+                        </div>
+                        <Badge className="bg-primary/10 text-primary capitalize">{sprint.status}</Badge>
                       </div>
-                      <Badge className="bg-blue-500/10 text-blue-500">
-                        {sprint.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Start Date</p>
-                        <p className="font-medium">{sprint.startDate.toLocaleDateString()}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">End Date</p>
-                        <p className="font-medium">{sprint.endDate.toLocaleDateString()}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Velocity</p>
-                        <p className="font-medium">{sprint.velocity} points</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="releases" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Release Pipeline</h3>
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                New Release
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {project.releases.map((release) => (
-                <Card key={release.id}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">Version {release.version}</CardTitle>
-                        <CardDescription>{release.notes}</CardDescription>
-                      </div>
-                      <Badge className="bg-purple-500/10 text-purple-500">
-                        {release.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">Release Date</p>
-                        <p className="font-medium">{release.releaseDate.toLocaleDateString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">Features</p>
-                        <div className="flex flex-wrap gap-2">
-                          {release.features.map((feature, idx) => (
-                            <Badge key={idx} variant="secondary">{feature}</Badge>
-                          ))}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <p className="text-sm text-muted-foreground">Start Date</p>
+                          <p className="font-medium">{new Date(sprint.start_date).toLocaleDateString()}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm text-muted-foreground">End Date</p>
+                          <p className="font-medium">{new Date(sprint.end_date).toLocaleDateString()}</p>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="backlog" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Backlog</h3>
+              <Button className="gap-2">
+                <Plus className="w-4 h-4" />
+                Add Item
+              </Button>
             </div>
+            {backlog.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Backlog is empty. Add items to plan future work.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {backlog.map((item) => (
+                  <Card key={item.backlog_item_id}>
+                    <CardContent className="py-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-sm">{item.title}</p>
+                          <p className="text-xs text-muted-foreground">{item.description}</p>
+                        </div>
+                        <Badge variant="outline" className="text-2xs">
+                          Priority: {item.priority}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="team" className="space-y-4">
@@ -246,23 +199,30 @@ const ProjectDetail = () => {
                 Add Member
               </Button>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {project.teamMembers.map((member) => (
-                <Card key={member}>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-lg font-medium text-primary">
-                        {member}
+            {members.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No team members assigned yet.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {members.map((member) => (
+                  <Card key={member.user_id}>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-lg font-medium text-primary">
+                          {member.full_name.split(" ").map(n => n[0]).join("").toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-medium">{member.full_name}</p>
+                          <p className="text-sm text-muted-foreground">{member.email}</p>
+                          <Badge variant="outline" className="text-2xs capitalize mt-1">{member.role}</Badge>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">Team Member {member}</p>
-                        <p className="text-sm text-muted-foreground">Developer</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

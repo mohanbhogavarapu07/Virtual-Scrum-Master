@@ -1,73 +1,36 @@
-import { useApp } from "@/context/AppContext";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import { Users } from "lucide-react";
+import { useUsers } from "@/hooks/useApiHooks";
+import { useAuth } from "@/context/AuthContext";
 
 export const TeamWorkloadPanel = () => {
-  const { teamStats } = useApp();
-
-  const getWorkloadBadge = (workload: string) => {
-    switch (workload) {
-      case "heavy":
-        return <Badge variant="outline" className="text-2xs bg-destructive/10 text-destructive border-destructive/20">Heavy</Badge>;
-      case "optimal":
-        return <Badge variant="outline" className="text-2xs bg-success/10 text-success border-success/20">Optimal</Badge>;
-      case "light":
-        return <Badge variant="outline" className="text-2xs bg-warning/10 text-warning border-warning/20">Light</Badge>;
-      default:
-        return null;
-    }
-  };
-
-  const getProgressColor = (workload: string) => {
-    switch (workload) {
-      case "heavy":
-        return "bg-destructive";
-      case "optimal":
-        return "bg-success";
-      case "light":
-        return "bg-warning";
-      default:
-        return "bg-muted";
-    }
-  };
-
-  const maxPoints = Math.max(...teamStats.map(t => t.totalPoints));
+  const { user } = useAuth();
+  const { data: users = [] } = useUsers();
+  const isAdmin = user?.role === "ADMIN";
 
   return (
     <div className="bg-card border border-border rounded-lg">
       <div className="px-4 py-3 border-b border-border">
-        <h3 className="text-sm font-semibold">Team Workload</h3>
+        <h3 className="text-sm font-semibold">Team Members</h3>
       </div>
-
-      <div className="p-4 space-y-4">
-        {teamStats.map((member) => (
-          <div key={member.initials} className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-2xs font-semibold text-white">
-                  {member.initials}
-                </div>
-                <span className="text-sm font-medium">{member.name}</span>
+      <div className="p-4 space-y-3">
+        {isAdmin && users.length > 0 ? (
+          users.slice(0, 5).map((member) => (
+            <div key={member.user_id} className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-2xs font-semibold text-white">
+                {member.full_name.split(" ").map(n => n[0]).join("").toUpperCase()}
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">{member.totalPoints} pts</span>
-                {getWorkloadBadge(member.workload)}
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-medium truncate block">{member.full_name}</span>
               </div>
+              <span className="text-2xs text-muted-foreground capitalize">{member.role.toLowerCase()}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className={cn("h-full rounded-full transition-all", getProgressColor(member.workload))}
-                  style={{ width: `${(member.totalPoints / maxPoints) * 100}%` }}
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-4 text-2xs text-muted-foreground">
-              <span>{member.completed} completed</span>
-              <span>{member.inProgress} in progress</span>
-            </div>
+          ))
+        ) : (
+          <div className="text-center">
+            <Users className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Team data available for admins</p>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
