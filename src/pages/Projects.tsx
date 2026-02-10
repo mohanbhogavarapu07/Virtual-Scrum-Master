@@ -1,17 +1,68 @@
-import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, LayoutGrid, List, ChevronRight, Loader2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useProjects } from "@/hooks/useApiHooks";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { useCreateProject, useProjects } from "@/hooks/useApiHooks";
 import { motion } from "framer-motion";
+import { ChevronRight, LayoutGrid, List, Loader2, Plus, Search } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const Projects = () => {
   const navigate = useNavigate();
   const { data: projects = [], isLoading } = useProjects();
+  const createProject = useCreateProject();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [projectName, setProjectName] = useState("");
+  const [description, setDescription] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const isAdmin = user?.role === "ADMIN";
+
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = projectName.trim();
+    if (!name) {
+      toast({ title: "Project name is required", variant: "destructive" });
+      return;
+    }
+    try {
+      await createProject.mutateAsync({
+        project_name: name,
+        ...(description.trim() && { description: description.trim() }),
+        ...(startDate && { start_date: startDate }),
+        ...(endDate && { end_date: endDate }),
+      });
+      toast({ title: "Project created" });
+      setDialogOpen(false);
+      setProjectName("");
+      setDescription("");
+      setStartDate("");
+      setEndDate("");
+    } catch (err) {
+      toast({
+        title: "Failed to create project",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
+  };
 
   const filteredProjects = projects.filter(p =>
     p.project_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -24,13 +75,73 @@ const Projects = () => {
 
   return (
     <DashboardLayout>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New Project</DialogTitle>
+            <DialogDescription>Create a new project. Only project name is required.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="project_name">Project name *</Label>
+              <Input
+                id="project_name"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                placeholder="e.g. Q1 Release"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Brief description (optional)"
+                rows={2}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="start_date">Start date</Label>
+                <Input
+                  id="start_date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="end_date">End date</Label>
+                <Input
+                  id="end_date"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createProject.isPending}>
+                {createProject.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <div className="space-y-4">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold">Projects</h1>
             <p className="text-sm text-muted-foreground">{projects.length} projects</p>
           </div>
-          <Button size="sm" className="gap-1.5"><Plus className="w-4 h-4" />New Project</Button>
+          <Button size="sm" className="gap-1.5" onClick={() => isAdmin && setDialogOpen(true)} disabled={!isAdmin}>
+            <Plus className="w-4 h-4" />New Project
+          </Button>
         </motion.div>
 
         <div className="flex items-center gap-3">
