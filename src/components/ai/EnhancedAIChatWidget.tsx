@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Bot, X, Send, Minimize2, Zap } from "lucide-react";
+import { Bot, X, Send, Minimize2 } from "lucide-react";
+import logoImg from "@/assets/logo.png";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/context/AuthContext";
 import { ChatMessage, TaskAction } from "@/types";
@@ -22,7 +23,7 @@ export const EnhancedAIChatWidget = () => {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: "1", content: "👋 Hi! I'm your AI Scrum Master. Ask me about tasks, sprints, or team performance.", role: "assistant", timestamp: new Date(), confidence: 0.95 },
+    { id: "1", content: "👋 Hi! I'm your Virtual Scrum Master. Ask me about tasks, sprints, or team performance.", role: "assistant", timestamp: new Date(), confidence: 0.95 },
   ]);
 
   const { user, isAuthenticated } = useAuth();
@@ -83,8 +84,8 @@ export const EnhancedAIChatWidget = () => {
     <Card className={cn("fixed bottom-4 right-4 w-96 shadow-xl z-50 transition-all flex flex-col border border-border", isMinimized ? 'h-14' : 'h-[500px]')}>
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-primary to-accent rounded-t-lg">
         <div className="flex items-center gap-2">
-          <Bot className="w-4 h-4 text-white" />
-          <span className="text-sm font-semibold text-white">AI Scrum Master</span>
+          <img src={logoImg} alt="Virtual Scrum Master" className="w-5 h-5 rounded" />
+          <span className="text-sm font-semibold text-white">Virtual Scrum Master</span>
           <Badge className="bg-white/20 text-white text-2xs border-0">Beta</Badge>
         </div>
         <div className="flex items-center gap-1">

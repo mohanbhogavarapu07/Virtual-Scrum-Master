@@ -1,4 +1,5 @@
-import { Bell, Search, Filter, ChevronDown, Bot } from "lucide-react";
+import { Bell, Search, Filter, ChevronDown } from "lucide-react";
+import logoImg from "@/assets/logo.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RoleSelector } from "./RoleSelector";
@@ -65,7 +66,7 @@ export const Header = () => {
       
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-          <Bot className="w-3.5 h-3.5" />
+          <img src={logoImg} alt="" className="w-4 h-4 rounded-sm" />
           Ask AI
         </Button>
 
