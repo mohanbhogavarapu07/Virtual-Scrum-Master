@@ -1,4 +1,5 @@
-import { LayoutDashboard, FolderKanban, BarChart3, Settings, Zap, ChevronDown } from "lucide-react";
+import { LayoutDashboard, FolderKanban, BarChart3, Settings, ChevronDown } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -18,11 +19,9 @@ export const Sidebar = () => {
   return (
     <div className="flex h-screen w-60 flex-col bg-sidebar border-r border-sidebar-border">
       <div className="flex h-14 items-center gap-2.5 border-b border-sidebar-border px-4">
-        <div className="p-1.5 rounded-md bg-primary">
-          <Zap className="w-4 h-4 text-white" />
-        </div>
+        <img src={logo} alt="Virtual Scrum Master" className="w-8 h-8 rounded-md" />
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-sidebar-foreground">AI Scrum Master</span>
+          <span className="text-sm font-semibold text-sidebar-foreground">Virtual Scrum Master</span>
           <span className="text-2xs text-sidebar-muted">Enterprise</span>
         </div>
       </div>

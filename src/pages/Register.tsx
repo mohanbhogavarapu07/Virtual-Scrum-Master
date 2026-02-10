@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Bot, Loader2, ArrowRight, Users, BarChart3, Brain } from "lucide-react";
+import { Loader2, ArrowRight, Users, BarChart3, Brain } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
+import logo from "@/assets/logo.png";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -53,10 +54,8 @@ const Register = () => {
         >
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-3 mb-4">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary to-accent">
-              <Bot className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-lg font-bold tracking-tight">AI Scrum Master</span>
+            <img src={logo} alt="Virtual Scrum Master" className="w-10 h-10 rounded-xl" />
+            <span className="text-lg font-bold tracking-tight">Virtual Scrum Master</span>
           </div>
 
           <div className="space-y-2">
@@ -178,10 +177,8 @@ const Register = () => {
             transition={{ duration: 0.6 }}
             className="flex items-center gap-3"
           >
-            <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
-              <Bot className="w-7 h-7" />
-            </div>
-            <span className="text-xl font-bold tracking-tight">AI Scrum Master</span>
+            <img src={logo} alt="Virtual Scrum Master" className="w-10 h-10 rounded-xl" />
+            <span className="text-xl font-bold tracking-tight">Virtual Scrum Master</span>
           </motion.div>
 
           <div className="space-y-8">
