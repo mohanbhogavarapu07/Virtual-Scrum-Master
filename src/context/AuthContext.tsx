@@ -1,13 +1,13 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { authApi, clearToken, getToken, setToken } from "@/lib/api";
 import { ApiUser } from "@/types";
-import { authApi, getToken, setToken, clearToken } from "@/lib/api";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
 
 interface AuthContextType {
   user: ApiUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (fullName: string, email: string, password: string) => Promise<void>;
+  register: (fullName: string, email: string, password: string, role?: "ADMIN" | "EMPLOYEE") => Promise<void>;
   logout: () => void;
 }
 
@@ -40,18 +40,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     const response = await authApi.login({ email, password });
-    setToken(response.access_token);
-    const userData = await authApi.me();
-    setUser(userData);
+    setToken(response.token);
+    setUser(response.user);
   };
 
-  const register = async (fullName: string, email: string, password: string) => {
-    await authApi.register({ full_name: fullName, email, password });
-    // Auto-login after registration
-    const response = await authApi.login({ email, password });
-    setToken(response.access_token);
-    const userData = await authApi.me();
-    setUser(userData);
+  const register = async (fullName: string, email: string, password: string, role: "ADMIN" | "EMPLOYEE" = "EMPLOYEE") => {
+    const response = await authApi.register({ full_name: fullName, email, password, role });
+    setToken(response.token);
+    setUser(response.user);
   };
 
   const logout = () => {

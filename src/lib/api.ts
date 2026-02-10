@@ -1,60 +1,80 @@
 import type {
-  ApiUser,
-  LoginRequest,
-  LoginResponse,
-  RegisterRequest,
-  ApiProject,
-  ProjectMember,
-  AssignRequest,
-  ApiSprint,
-  ApiTask,
-  TaskStatus,
+  AdminDashboard,
   ApiBacklogItem,
   ApiChatLog,
+  ApiPerformanceLog,
+  ApiProject,
+  ApiSprint,
+  ApiTask,
+  ApiUser,
+  AssignRequest,
+  AuthResponse,
   ChatSendRequest,
   ChatSendResponse,
-  ApiPerformanceLog,
-  PerformanceLogCreate,
-  AdminDashboard,
   EmployeeDashboard,
+  LoginRequest,
+  PerformanceLogCreate,
+  ProjectMember,
+  RegisterRequest,
+  TaskStatus,
 } from "@/types";
 
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:5000";
+
+/** Frontend origin (this app's URL). Backend CORS_ORIGINS must include this. */
+export const APP_ORIGIN =
+  (import.meta.env.VITE_APP_ORIGIN as string) || "http://localhost:8080";
 
 // ---- Token helpers ----
 export const getToken = (): string | null => localStorage.getItem("token");
 export const setToken = (token: string) => localStorage.setItem("token", token);
 export const clearToken = () => localStorage.removeItem("token");
 
+const DEBUG_API = import.meta.env.DEV;
+
 // ---- Base request helper ----
 async function request<T>(
   url: string,
   options?: RequestInit
 ): Promise<T> {
+  const fullUrl = `${API_BASE_URL}${url}`;
+  if (DEBUG_API) {
+    console.debug("[API]", options?.method ?? "GET", fullUrl, {
+      API_BASE_URL,
+      APP_ORIGIN,
+      origin: typeof window !== "undefined" ? window.location.origin : "",
+    });
+  }
+
   const token = getToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
-  const res = await fetch(`${API_BASE_URL}${url}`, {
+  const res = await fetch(fullUrl, {
     ...options,
     headers: { ...headers, ...(options?.headers as Record<string, string>) },
   });
 
+  const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(
-      typeof error.detail === "string"
-        ? error.detail
-        : JSON.stringify(error.detail) || "Request failed"
-    );
+    const msg =
+      (body && typeof body.message === "string" && body.message) ||
+      res.statusText ||
+      "Request failed";
+    throw new Error(msg);
   }
 
   // Handle 204 No Content
   if (res.status === 204) return undefined as T;
 
-  return res.json();
+  // Backend wraps success responses as { success: true, data: T, message?: string }
+  if (body && body.success === true && "data" in body) {
+    return body.data as T;
+  }
+  return body as T;
 }
 
 // ==========================================
@@ -62,13 +82,13 @@ async function request<T>(
 // ==========================================
 export const authApi = {
   login: (data: LoginRequest) =>
-    request<LoginResponse>("/auth/login", {
+    request<AuthResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   register: (data: RegisterRequest) =>
-    request<ApiUser>("/auth/register", {
+    request<AuthResponse>("/auth/register", {
       method: "POST",
       body: JSON.stringify(data),
     }),

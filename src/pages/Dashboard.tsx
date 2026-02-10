@@ -1,26 +1,26 @@
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { MetricCard } from "@/components/dashboard/MetricCard";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/context/AuthContext";
-import { useAdminDashboard, useEmployeeDashboard, useProjects, useAllTasks } from "@/hooks/useApiHooks";
-import { FolderKanban, Zap, AlertTriangle, Target, TrendingUp, Users, Loader2 } from "lucide-react";
+import { useAllTasks, useDashboard, useProjects } from "@/hooks/useApiHooks";
 import { motion } from "framer-motion";
+import { AlertTriangle, FolderKanban, Loader2, Target, TrendingUp, Users, Zap } from "lucide-react";
 
 const Dashboard = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
-  const { data: adminDash, isLoading: adminLoading } = useAdminDashboard();
-  const { data: empDash, isLoading: empLoading } = useEmployeeDashboard();
+  const { data: dash, isLoading } = useDashboard();
   const { data: projects = [] } = useProjects();
   const { data: tasks = [] } = useAllTasks();
 
-  const isLoading = isAdmin ? adminLoading : empLoading;
+  const adminDash = dash && "total_projects" in dash ? dash : null;
+  const empDash = dash && "my_projects" in dash ? dash : null;
   const totalProjects = isAdmin ? (adminDash?.total_projects ?? projects.length) : (empDash?.my_projects?.length ?? 0);
   const totalTasks = isAdmin ? (adminDash?.total_tasks ?? tasks.length) : (empDash?.my_tasks?.length ?? 0);
   const totalUsers = adminDash?.total_users ?? 0;
   const tasksByStatus = adminDash?.tasks_by_status ?? {};
-  const doneTasks = tasksByStatus["DONE"] ?? tasks.filter(t => t.status === "DONE").length;
-  const inProgressTasks = tasksByStatus["IN_PROGRESS"] ?? tasks.filter(t => t.status === "IN_PROGRESS").length;
-  const todoTasks = tasksByStatus["TODO"] ?? tasks.filter(t => t.status === "TODO").length;
+  const doneTasks = tasksByStatus["DONE"] ?? tasks.filter((t) => t.status === "DONE").length;
+  const inProgressTasks = tasksByStatus["IN_PROGRESS"] ?? tasks.filter((t) => t.status === "IN_PROGRESS").length;
+  const todoTasks = tasksByStatus["TODO"] ?? tasks.filter((t) => t.status === "TODO").length;
 
   if (isLoading) {
     return (

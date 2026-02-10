@@ -1,13 +1,12 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { useParams, useNavigate } from "react-router-dom";
-import { useProject, useProjectSprints, useProjectMembers, useProjectBacklog } from "@/hooks/useApiHooks";
-import { Users, Calendar, TrendingUp, Plus, Package, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useProject, useProjectBacklog, useProjectMembers, useProjectSprints } from "@/hooks/useApiHooks";
 import { motion } from "framer-motion";
+import { Calendar, Loader2, Package, Plus, TrendingUp, Users } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
 
 const ProjectDetail = () => {
   const { id } = useParams();
@@ -210,12 +209,12 @@ const ProjectDetail = () => {
                     <CardContent className="pt-6">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-lg font-medium text-primary">
-                          {member.full_name.split(" ").map(n => n[0]).join("").toUpperCase()}
+                          {(member.full_name ?? "").split(" ").map(n => n[0]).join("").toUpperCase() || "?"}
                         </div>
                         <div>
-                          <p className="font-medium">{member.full_name}</p>
-                          <p className="text-sm text-muted-foreground">{member.email}</p>
-                          <Badge variant="outline" className="text-2xs capitalize mt-1">{member.role}</Badge>
+                          <p className="font-medium">{member.full_name ?? "—"}</p>
+                          <p className="text-sm text-muted-foreground">{member.email ?? "—"}</p>
+                          <Badge variant="outline" className="text-2xs capitalize mt-1">{member.role ?? "—"}</Badge>
                         </div>
                       </div>
                     </CardContent>

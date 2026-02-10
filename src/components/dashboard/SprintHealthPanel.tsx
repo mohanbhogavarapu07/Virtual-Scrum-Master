@@ -1,12 +1,12 @@
-import { useAdminDashboard } from "@/hooks/useApiHooks";
+import { useDashboard } from "@/hooks/useApiHooks";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, TrendingUp } from "lucide-react";
 
 export const SprintHealthPanel = () => {
-  const { data: dashboard } = useAdminDashboard();
+  const { data: dashboard } = useDashboard();
 
-  const tasksByStatus = dashboard?.tasks_by_status ?? {};
-  const totalTasks = dashboard?.total_tasks ?? 0;
+  const tasksByStatus = (dashboard && "tasks_by_status" in dashboard) ? dashboard.tasks_by_status ?? {} : {};
+  const totalTasks = (dashboard && "total_tasks" in dashboard) ? dashboard.total_tasks ?? 0 : 0;
   const doneTasks = tasksByStatus["DONE"] ?? 0;
   const progressPercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 

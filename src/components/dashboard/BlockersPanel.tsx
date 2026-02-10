@@ -1,12 +1,12 @@
-import { cn } from "@/lib/utils";
-import { AlertCircle, Clock, ArrowRight, ExternalLink } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useAdminDashboard } from "@/hooks/useApiHooks";
+import { Button } from "@/components/ui/button";
+import { useDashboard } from "@/hooks/useApiHooks";
+import { cn } from "@/lib/utils";
+import { AlertCircle, ArrowRight, Clock, ExternalLink } from "lucide-react";
 
 export const BlockersPanel = () => {
-  const { data: dashboard } = useAdminDashboard();
-  const bottlenecks = dashboard?.bottlenecks ?? [];
+  const { data: dashboard } = useDashboard();
+  const bottlenecks = (dashboard && "bottlenecks" in dashboard) ? dashboard.bottlenecks : [];
 
   return (
     <div className="bg-card border border-border rounded-lg">

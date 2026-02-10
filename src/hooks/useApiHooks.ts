@@ -1,19 +1,26 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/context/AuthContext";
 import {
-  projectsApi,
-  sprintsApi,
-  tasksApi,
-  backlogApi,
-  chatApi,
-  performanceApi,
-  dashboardApi,
-  usersApi,
+    backlogApi,
+    chatApi,
+    dashboardApi,
+    performanceApi,
+    projectsApi,
+    sprintsApi,
+    tasksApi,
+    usersApi,
 } from "@/lib/api";
-import type { TaskStatus } from "@/types";
+import type { ApiBacklogItem, ApiProject, ApiSprint, ApiTask, ProjectMember, TaskStatus } from "@/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // ---- Projects ----
+/** Backend returns { projects, count }; we normalize to projects array. */
 export const useProjects = () =>
-  useQuery({ queryKey: ["projects"], queryFn: projectsApi.list });
+  useQuery({
+    queryKey: ["projects"],
+    queryFn: projectsApi.list,
+    select: (data: ApiProject[] | { projects?: ApiProject[]; count?: number }) =>
+      Array.isArray(data) ? data : (data?.projects ?? []),
+  });
 
 export const useProject = (projectId: number) =>
   useQuery({
@@ -22,11 +29,26 @@ export const useProject = (projectId: number) =>
     enabled: !!projectId,
   });
 
+/** Backend returns { members, count }. Each member may be { employee_id, user?: { full_name, email, role } }; we normalize to ProjectMember[]. */
 export const useProjectMembers = (projectId: number) =>
   useQuery({
     queryKey: ["projects", projectId, "members"],
     queryFn: () => projectsApi.listMembers(projectId),
     enabled: !!projectId,
+    select: (data: ProjectMember[] | { members?: unknown[]; count?: number }): ProjectMember[] => {
+      const raw = Array.isArray(data) ? data : (data?.members ?? []);
+      if (!Array.isArray(raw)) return [];
+      return raw.map((row: Record<string, unknown>) => {
+        const user = row?.user as Record<string, unknown> | undefined;
+        return {
+          user_id: (row?.employee_id ?? row?.user_id) as number,
+          full_name: (user?.full_name ?? row?.full_name ?? "") as string,
+          email: (user?.email ?? row?.email ?? "") as string,
+          role: (user?.role ?? row?.role ?? "EMPLOYEE") as ProjectMember["role"],
+          assigned_at: row?.assigned_at as string | undefined,
+        };
+      });
+    },
   });
 
 export const useCreateProject = () => {
@@ -67,11 +89,14 @@ export const useRemoveMember = () => {
 };
 
 // ---- Sprints ----
+/** Backend returns { sprints, count }; we normalize to sprints array. */
 export const useProjectSprints = (projectId: number) =>
   useQuery({
     queryKey: ["sprints", "project", projectId],
     queryFn: () => sprintsApi.listByProject(projectId),
     enabled: !!projectId,
+    select: (data: ApiSprint[] | { sprints?: ApiSprint[]; count?: number }) =>
+      Array.isArray(data) ? data : (data?.sprints ?? []),
   });
 
 export const useSprint = (sprintId: number) =>
@@ -99,15 +124,24 @@ export const useDeleteSprint = () => {
 };
 
 // ---- Tasks ----
+/** Backend returns { tasks, count }; we normalize to tasks array. */
 export const useSprintTasks = (sprintId: number) =>
   useQuery({
     queryKey: ["tasks", "sprint", sprintId],
     queryFn: () => tasksApi.listBySprint(sprintId),
     enabled: !!sprintId,
+    select: (data: ApiTask[] | { tasks?: ApiTask[]; count?: number }) =>
+      Array.isArray(data) ? data : (data?.tasks ?? []),
   });
 
+/** Backend returns { tasks, count }; we normalize to tasks array. */
 export const useAllTasks = () =>
-  useQuery({ queryKey: ["tasks"], queryFn: tasksApi.listAll });
+  useQuery({
+    queryKey: ["tasks"],
+    queryFn: tasksApi.listAll,
+    select: (data: ApiTask[] | { tasks?: ApiTask[]; count?: number }) =>
+      Array.isArray(data) ? data : (data?.tasks ?? []),
+  });
 
 export const useTask = (taskId: number) =>
   useQuery({
@@ -152,11 +186,14 @@ export const useDeleteTask = () => {
 };
 
 // ---- Backlog ----
+/** Backend returns { backlog_items, count }; we normalize to backlog_items array. */
 export const useProjectBacklog = (projectId: number) =>
   useQuery({
     queryKey: ["backlog", projectId],
     queryFn: () => backlogApi.listByProject(projectId),
     enabled: !!projectId,
+    select: (data: ApiBacklogItem[] | { backlog_items?: ApiBacklogItem[]; count?: number }) =>
+      Array.isArray(data) ? data : (data?.backlog_items ?? []),
   });
 
 export const useCreateBacklogItem = () => {
@@ -230,10 +267,29 @@ export const useCreatePerformanceLog = () => {
 
 // ---- Dashboard ----
 export const useAdminDashboard = () =>
-  useQuery({ queryKey: ["dashboard", "admin"], queryFn: dashboardApi.admin });
+  useQuery({
+    queryKey: ["dashboard", "admin"],
+    queryFn: dashboardApi.admin,
+    enabled: useAuth().user?.role === "ADMIN",
+  });
 
 export const useEmployeeDashboard = () =>
-  useQuery({ queryKey: ["dashboard", "employee"], queryFn: dashboardApi.employee });
+  useQuery({
+    queryKey: ["dashboard", "employee"],
+    queryFn: dashboardApi.employee,
+    enabled: useAuth().user?.role === "EMPLOYEE",
+  });
+
+/** Role-aware dashboard: admin -> /dashboard/admin, employee -> /dashboard/employee. Avoids 403 for employees. */
+export const useDashboard = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  return useQuery({
+    queryKey: ["dashboard", user?.role],
+    queryFn: () => (isAdmin ? dashboardApi.admin() : dashboardApi.employee()),
+    enabled: !!user?.role,
+  });
+};
 
 // ---- Users (Admin) ----
 export const useUsers = () =>

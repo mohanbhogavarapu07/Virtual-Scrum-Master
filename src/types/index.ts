@@ -19,15 +19,17 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface LoginResponse {
-  access_token: string;
-  token_type: string;
+/** Backend returns { user, token } for login and register (after envelope unwrap). */
+export interface AuthResponse {
+  user: ApiUser;
+  token: string;
 }
 
 export interface RegisterRequest {
   full_name: string;
   email: string;
   password: string;
+  role: UserRole; // Backend requires ADMIN or EMPLOYEE
 }
 
 // --- Projects ---

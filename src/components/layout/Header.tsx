@@ -1,24 +1,23 @@
-import { Bell, Search, Filter, ChevronDown } from "lucide-react";
 import logoImg from "@/assets/logo.png";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { RoleSelector } from "./RoleSelector";
-import { useProjects } from "@/hooks/useApiHooks";
-import { useAdminDashboard } from "@/hooks/useApiHooks";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { useDashboard, useProjects } from "@/hooks/useApiHooks";
+import { Bell, ChevronDown, Filter, Search } from "lucide-react";
+import { RoleSelector } from "./RoleSelector";
 
 export const Header = () => {
   const { data: projects = [] } = useProjects();
-  const { data: dashboard } = useAdminDashboard();
-  const bottlenecks = dashboard?.bottlenecks ?? [];
+  const { data: dashboard } = useDashboard();
+  const bottlenecks = (dashboard && "bottlenecks" in dashboard) ? dashboard.bottlenecks : [];
 
   return (
     <header className="flex h-12 items-center justify-between border-b border-border bg-card px-4 sticky top-0 z-10">
