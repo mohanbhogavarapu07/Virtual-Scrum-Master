@@ -26,6 +26,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const userData = await authApi.me();
       setUser(userData);
+      // Refresh token so JWT role matches DB (e.g. if role was changed in Supabase from EMPLOYEE to ADMIN)
+      const refreshed = await authApi.refresh();
+      setToken(refreshed.token);
+      if (refreshed.user) setUser(refreshed.user);
     } catch {
       clearToken();
       setUser(null);
@@ -71,10 +75,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+const defaultAuthState: AuthContextType = {
+  user: null,
+  isAuthenticated: false,
+  isLoading: true,
+  login: async () => {},
+  register: async () => {},
+  logout: () => {},
+};
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
+  // During HMR or if tree is wrong, context can be undefined; return safe default so app doesn't crash
+  if (context === undefined) {
+    if (import.meta.env.DEV) {
+      console.warn("useAuth called outside AuthProvider – ensure AuthProvider wraps your app.");
+    }
+    return defaultAuthState;
   }
   return context;
 };

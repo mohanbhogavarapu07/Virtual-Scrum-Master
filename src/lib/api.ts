@@ -1,22 +1,22 @@
 import type {
-  AdminDashboard,
-  ApiBacklogItem,
-  ApiChatLog,
-  ApiPerformanceLog,
-  ApiProject,
-  ApiSprint,
-  ApiTask,
-  ApiUser,
-  AssignRequest,
-  AuthResponse,
-  ChatSendRequest,
-  ChatSendResponse,
-  EmployeeDashboard,
-  LoginRequest,
-  PerformanceLogCreate,
-  ProjectMember,
-  RegisterRequest,
-  TaskStatus,
+    AdminDashboard,
+    ApiBacklogItem,
+    ApiChatLog,
+    ApiPerformanceLog,
+    ApiProject,
+    ApiSprint,
+    ApiTask,
+    ApiUser,
+    AssignRequest,
+    AuthResponse,
+    ChatSendRequest,
+    ChatSendResponse,
+    EmployeeDashboard,
+    LoginRequest,
+    PerformanceLogCreate,
+    ProjectMember,
+    RegisterRequest,
+    TaskStatus,
 } from "@/types";
 
 const API_BASE_URL =
@@ -94,6 +94,10 @@ export const authApi = {
     }),
 
   me: () => request<ApiUser>("/auth/me"),
+
+  /** Re-issue JWT with current role from DB. Call after app load so token matches DB (e.g. if role was changed in Supabase). */
+  refresh: () =>
+    request<{ user: ApiUser; token: string }>("/auth/refresh", { method: "POST" }),
 };
 
 // ==========================================
@@ -240,19 +244,35 @@ export const tasksApi = {
 // Performance API
 // ==========================================
 export const performanceApi = {
+  /** POST /performance/log */
   createLog: (data: PerformanceLogCreate) =>
     request<ApiPerformanceLog>("/performance/log", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
-  myLogs: () => request<ApiPerformanceLog[]>("/performance/me"),
+  /** POST /performance/logs (alias for create) */
+  createLogAlias: (data: PerformanceLogCreate) =>
+    request<ApiPerformanceLog>("/performance/logs", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 
+  /** GET /performance/me - my performance logs */
+  myLogs: () =>
+    request<{ performance_logs: ApiPerformanceLog[]; count: number }>("/performance/me"),
+
+  /** GET /performance/project/:id - admin */
   byProject: (projectId: number) =>
-    request<ApiPerformanceLog[]>(`/performance/project/${projectId}`),
+    request<{ performance_logs: ApiPerformanceLog[]; count: number }>(
+      `/performance/project/${projectId}`
+    ),
 
+  /** GET /performance/user/:id - admin */
   byUser: (userId: number) =>
-    request<ApiPerformanceLog[]>(`/performance/user/${userId}`),
+    request<{ performance_logs: ApiPerformanceLog[]; count: number }>(
+      `/performance/user/${userId}`
+    ),
 };
 
 // ==========================================
@@ -273,6 +293,10 @@ export const chatApi = {
 // Dashboard API
 // ==========================================
 export const dashboardApi = {
+  /** Single role-based endpoint: backend returns admin or employee data. Use this to avoid 403. */
+  get: () =>
+    request<AdminDashboard | EmployeeDashboard>("/dashboard"),
+
   admin: () => request<AdminDashboard>("/dashboard/admin"),
   employee: () => request<EmployeeDashboard>("/dashboard/employee"),
 };

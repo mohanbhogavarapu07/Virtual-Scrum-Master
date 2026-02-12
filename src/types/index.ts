@@ -132,9 +132,14 @@ export interface ApiPerformanceLog {
 export interface PerformanceLogCreate {
   user_id: number;
   task_id: number;
-  accuracy_score: number;
-  progress_percent: number;
-  log_date: string;
+  accuracy_score?: number;
+  progress_percent?: number;
+  log_date?: string;
+}
+
+export interface PerformanceLogListResponse {
+  performance_logs: ApiPerformanceLog[];
+  count: number;
 }
 
 // --- Dashboard ---

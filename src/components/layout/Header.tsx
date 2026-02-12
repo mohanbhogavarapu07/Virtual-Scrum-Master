@@ -11,18 +11,31 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useDashboard, useProjects } from "@/hooks/useApiHooks";
-import { Bell, ChevronDown, Filter, Search } from "lucide-react";
+import { Bell, ChevronDown, Filter, Menu, Search } from "lucide-react";
 import { RoleSelector } from "./RoleSelector";
 
-export const Header = () => {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export const Header = ({ onMenuClick }: HeaderProps) => {
   const { data: projects = [] } = useProjects();
   const { data: dashboard } = useDashboard();
   const bottlenecks = (dashboard && "bottlenecks" in dashboard) ? dashboard.bottlenecks : [];
 
   return (
     <header className="flex h-12 items-center justify-between border-b border-border bg-card px-4 sticky top-0 z-10">
-      <div className="flex items-center gap-3 flex-1">
-        <div className="relative w-72">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 flex-shrink-0"
+          onClick={onMenuClick}
+          aria-label="Open menu"
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
+        <div className="relative w-72 max-w-[12rem] sm:max-w-none">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
             placeholder="Search projects, tasks, people..." 
