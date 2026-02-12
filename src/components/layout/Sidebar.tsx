@@ -2,10 +2,21 @@ import logo from "@/assets/logo.png";
 import { useAuth } from "@/context/AuthContext";
 import { useProjects } from "@/hooks/useApiHooks";
 import { cn } from "@/lib/utils";
-import { Activity, BarChart3, ChevronDown, ChevronLeft, FolderKanban, LayoutDashboard, ListTodo, Settings } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import {
+    Activity,
+    BarChart3,
+    ChevronDown,
+    FolderKanban,
+    LayoutDashboard,
+    LayoutGrid,
+    List,
+    ListTodo,
+    Settings,
+    Users,
+} from "lucide-react";
+import { NavLink, useLocation, useParams } from "react-router-dom";
 
-const navigation = [
+const globalNav = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Projects", href: "/projects", icon: FolderKanban },
   { name: "Tasks", href: "/tasks", icon: ListTodo },
@@ -22,12 +33,24 @@ interface SidebarProps {
 
 export const Sidebar = ({ isOpen, onToggle, onClose }: SidebarProps) => {
   const { user } = useAuth();
+  const { pathname } = useLocation();
+  const { id: projectIdParam } = useParams();
+  const projectId = projectIdParam ? Number(projectIdParam) : null;
   const { data: projectsRaw = [] } = useProjects();
   const projects = Array.isArray(projectsRaw) ? projectsRaw : [];
 
+  const isProjectRoute = pathname.startsWith("/project/") && projectId;
+  const projectNav = isProjectRoute
+    ? [
+        { name: "Overview", href: `/project/${projectId}`, icon: LayoutGrid },
+        { name: "Backlog", href: `/project/${projectId}?tab=backlog`, icon: List },
+        { name: "Board", href: `/project/${projectId}?tab=sprints`, icon: LayoutGrid },
+        { name: "People", href: `/project/${projectId}?tab=people`, icon: Users },
+      ]
+    : [];
+
   return (
     <>
-      {/* Backdrop when sidebar is open (mobile / overlay) */}
       {isOpen && (
         <button
           type="button"
@@ -38,97 +61,103 @@ export const Sidebar = ({ isOpen, onToggle, onClose }: SidebarProps) => {
       )}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 flex h-screen w-60 flex-col bg-sidebar border-r border-sidebar-border shadow-lg transition-transform duration-200 ease-out md:relative md:z-auto md:shadow-none",
+          "fixed left-0 top-0 z-50 flex h-screen w-56 flex-col bg-[hsl(var(--sidebar-background))] border-r border-[hsl(var(--sidebar-border))] shadow-lg transition-transform duration-200 ease-out md:relative md:z-auto md:shadow-none",
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0 md:w-0 md:overflow-hidden md:border-0"
         )}
       >
-        <div className="flex h-14 items-center gap-2.5 border-b border-sidebar-border px-4 flex-shrink-0">
-          <img src={logo} alt="Virtual Scrum Master" className="w-8 h-8 rounded-md flex-shrink-0" />
-          <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-sm font-semibold text-sidebar-foreground truncate">Virtual Scrum Master</span>
-            <span className="text-2xs text-sidebar-muted">Enterprise</span>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close menu"
-            className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-muted hover:text-sidebar-foreground flex-shrink-0"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
+        <div className="flex h-11 items-center gap-2 border-b border-[hsl(var(--sidebar-border))] px-3 flex-shrink-0">
+          <img src={logo} alt="VSM" className="h-6 w-6 rounded flex-shrink-0" />
+          <span className="font-semibold text-sm text-[hsl(var(--sidebar-foreground))] truncate">Virtual Scrum</span>
         </div>
 
-      <div className="px-3 py-3 border-b border-sidebar-border">
-        <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors text-left">
-          <div className="w-6 h-6 rounded bg-gradient-to-br from-primary to-accent flex items-center justify-center text-2xs font-bold text-white">
-            AC
+        <div className="px-2 py-2 border-b border-[hsl(var(--sidebar-border))]">
+          <div className="flex items-center justify-between gap-1 px-2 py-1.5 rounded-md text-[hsl(var(--sidebar-muted))] text-xs font-medium uppercase tracking-wider">
+            <span>Projects</span>
+            <ChevronDown className="h-3.5 w-3.5" />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-sidebar-foreground truncate">Acme Corporation</p>
-            <p className="text-2xs text-sidebar-muted truncate">{projects.length} projects</p>
-          </div>
-          <ChevronDown className="w-3.5 h-3.5 text-sidebar-muted" />
-        </button>
-      </div>
-
-      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-        {navigation.map((item) => (
-          <NavLink
-            key={item.name}
-            to={item.href}
-            onClick={onClose}
-            className={({ isActive }) =>
-              cn(
-                "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-foreground"
-                  : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground"
-              )
-            }
-          >
-            <item.icon className="w-4 h-4" />
-            {item.name}
-          </NavLink>
-        ))}
-
-        <div className="pt-4">
-          <div className="flex items-center justify-between px-2.5 mb-2">
-            <span className="text-2xs font-medium text-sidebar-muted uppercase tracking-wider">Projects</span>
-          </div>
-          <div className="space-y-0.5">
-            {projects.map((project) => (
+          <div className="max-h-40 overflow-y-auto space-y-0.5 mt-1">
+            {projects.slice(0, 8).map((p) => (
               <NavLink
-                key={project.project_id}
-                to={`/project/${project.project_id}`}
+                key={p.project_id}
+                to={`/project/${p.project_id}`}
                 onClick={onClose}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+                    "flex items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors",
                     isActive
-                      ? "bg-sidebar-accent text-sidebar-foreground"
-                      : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                      ? "bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-foreground))]"
+                      : "text-[hsl(var(--sidebar-muted))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]"
                   )
                 }
               >
-                <div className="w-1.5 h-1.5 rounded-full bg-success" />
-                <span className="truncate">{project.project_name}</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--primary))] flex-shrink-0" />
+                <span className="truncate">{p.project_name}</span>
               </NavLink>
             ))}
           </div>
         </div>
-      </nav>
 
-      <div className="px-3 py-3 border-t border-sidebar-border">
-        <div className="flex items-center gap-2.5 px-2">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/80 to-accent/80 flex items-center justify-center text-xs font-semibold text-white">
-            {user?.full_name?.split(' ').map(n => n[0]).join('') ?? '?'}
+        <nav className="flex-1 overflow-y-auto py-2 space-y-0.5 px-2">
+          {projectNav.length > 0 && (
+            <div className="mb-2">
+              <div className="px-2 py-1.5 text-[hsl(var(--sidebar-muted))] text-xs font-medium uppercase tracking-wider">
+                Current project
+              </div>
+              {projectNav.map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.href}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors",
+                      isActive
+                        ? "bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-foreground))]"
+                        : "text-[hsl(var(--sidebar-muted))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]"
+                    )
+                  }
+                >
+                  <item.icon className="h-4 w-4 flex-shrink-0" />
+                  {item.name}
+                </NavLink>
+              ))}
+            </div>
+          )}
+
+          <div className="px-2 py-1.5 text-[hsl(var(--sidebar-muted))] text-xs font-medium uppercase tracking-wider">
+            Menu
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-sidebar-foreground truncate">{user?.full_name ?? 'User'}</p>
-            <p className="text-2xs text-sidebar-muted truncate capitalize">{user?.role ?? ''}</p>
+          {globalNav.map((item) => (
+            <NavLink
+              key={item.name}
+              to={item.href}
+              onClick={onClose}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors",
+                  isActive
+                    ? "bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-foreground))]"
+                    : "text-[hsl(var(--sidebar-muted))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]"
+                )
+              }
+            >
+              <item.icon className="h-4 w-4 flex-shrink-0" />
+              {item.name}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="p-2 border-t border-[hsl(var(--sidebar-border))]">
+          <div className="flex items-center gap-2 rounded px-2 py-2">
+            <div className="h-7 w-7 rounded-full bg-[hsl(var(--primary))] flex items-center justify-center text-xs font-medium text-primary-foreground flex-shrink-0">
+              {user?.full_name?.split(" ").map((n) => n[0]).join("").slice(0, 2) ?? "?"}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-[hsl(var(--sidebar-foreground))] truncate">{user?.full_name ?? "User"}</p>
+              <p className="text-2xs text-[hsl(var(--sidebar-muted))] truncate capitalize">{user?.role ?? ""}</p>
+            </div>
           </div>
         </div>
-      </div>
       </aside>
     </>
   );

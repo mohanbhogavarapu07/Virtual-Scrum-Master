@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -56,7 +57,7 @@ const Projects = () => {
   const deleteProject = useDeleteProject();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editProject, setEditProject] = useState<ApiProject | null>(null);
@@ -296,21 +297,18 @@ const Projects = () => {
             <Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>
           </div>
         )}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between"
-        >
-          <div>
-            <h1 className="text-xl font-semibold">Projects</h1>
-            <p className="text-sm text-muted-foreground">{projects.length} projects</p>
-          </div>
-          {isAdmin && (
-            <Button size="sm" className="gap-1.5" onClick={openCreate}>
-              <Plus className="w-4 h-4" /> New Project
-            </Button>
-          )}
-        </motion.div>
+        <PageHeader
+          title="Projects"
+          description={`${projects.length} project${projects.length !== 1 ? "s" : ""}`}
+          breadcrumbs={[{ label: "Projects" }]}
+          actions={
+            isAdmin ? (
+              <Button size="sm" className="gap-1.5" onClick={openCreate}>
+                <Plus className="w-4 h-4" /> Create project
+              </Button>
+            ) : undefined
+          }
+        />
 
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-sm">

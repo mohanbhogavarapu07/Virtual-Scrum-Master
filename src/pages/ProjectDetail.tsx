@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -43,14 +44,16 @@ import {
     useUsers,
 } from "@/hooks/useApiHooks";
 import type { ApiBacklogItem, ApiSprint } from "@/types";
-import { motion } from "framer-motion";
 import { Calendar, Loader2, Package, Pencil, Plus, Trash2, TrendingUp, Users } from "lucide-react";
 import React, { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 const ProjectDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get("tab") || "sprints";
+  const activeTab = ["sprints", "backlog", "team"].includes(tabFromUrl) ? tabFromUrl : "sprints";
   const projectId = Number(id);
 
   const { data: project, isLoading: projLoading } = useProject(projectId);
@@ -352,17 +355,14 @@ const ProjectDetail = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-start justify-between"
-        >
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{project.project_name}</h1>
-            <p className="text-muted-foreground mt-1">{project.description}</p>
-          </div>
-        </motion.div>
+        <PageHeader
+          title={project.project_name}
+          description={project.description ?? undefined}
+          breadcrumbs={[
+            { label: "Projects", href: "/projects" },
+            { label: project.project_name },
+          ]}
+        />
 
         {/* Quick Stats */}
         <div className="grid gap-4 md:grid-cols-4">
@@ -407,12 +407,16 @@ const ProjectDetail = () => {
           </Card>
         </div>
 
-        {/* Tabs */}
-        <Tabs defaultValue="sprints" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="sprints">Sprints</TabsTrigger>
-            <TabsTrigger value="backlog">Backlog</TabsTrigger>
-            <TabsTrigger value="team">Team</TabsTrigger>
+        {/* Tabs - synced with URL ?tab= */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setSearchParams({ tab: v })}
+          className="space-y-4"
+        >
+          <TabsList className="h-9">
+            <TabsTrigger value="sprints" className="text-sm">Sprints</TabsTrigger>
+            <TabsTrigger value="backlog" className="text-sm">Backlog</TabsTrigger>
+            <TabsTrigger value="team" className="text-sm">Team</TabsTrigger>
           </TabsList>
 
           <TabsContent value="sprints" className="space-y-4">
