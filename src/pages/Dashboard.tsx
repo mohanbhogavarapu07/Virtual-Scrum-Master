@@ -1,5 +1,6 @@
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useAuth } from "@/context/AuthContext";
 import { useAllTasks, useDashboard, useProjects } from "@/hooks/useApiHooks";
 import { motion } from "framer-motion";
@@ -35,12 +36,11 @@ const Dashboard = () => {
   return (
     <DashboardLayout>
       <div className="space-y-4">
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold">Dashboard</h1>
-            <p className="text-sm text-muted-foreground">{isAdmin ? "Admin Overview" : `Welcome, ${user?.full_name}`}</p>
-          </div>
-        </motion.div>
+        <PageHeader
+          title="Dashboard"
+          description={isAdmin ? "Admin Overview" : `Welcome, ${user?.full_name}`}
+          breadcrumbs={[{ label: "Dashboard" }]}
+        />
 
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <MetricCard title="Projects" value={totalProjects} icon={FolderKanban} iconColor="text-primary" />

@@ -1,4 +1,6 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { TaskDetailSheet } from "@/components/tasks/TaskDetailSheet";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -88,6 +90,7 @@ const SprintBoard = () => {
     status: "TODO" as TaskStatus,
     assigned_to_user_id: 0 as number | undefined,
   });
+  const [viewTask, setViewTask] = useState<ApiTask | null>(null);
 
   const openCreateTask = () => {
     setTaskForm({
@@ -252,9 +255,18 @@ const SprintBoard = () => {
   const completedCount = groupedTasks["DONE"]?.length ?? 0;
   const totalCount = tasks.length;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const getUserName = (userId: number) => users.find((u) => u.user_id === userId)?.full_name ?? `User ${userId}`;
 
   return (
     <DashboardLayout>
+      <TaskDetailSheet
+        task={viewTask}
+        open={!!viewTask}
+        onOpenChange={(open) => !open && setViewTask(null)}
+        getUserName={getUserName}
+        onEdit={(t) => { setViewTask(null); openEditTask(t); }}
+        onStatusChange={(taskId, status) => updateStatus.mutate({ taskId, status })}
+      />
       {/* Edit sprint dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-md">
@@ -503,26 +515,36 @@ const SprintBoard = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="space-y-4 h-full flex flex-col">
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between flex-shrink-0">
-          <div>
-            <div className="flex items-center gap-3"><h1 className="text-xl font-semibold">{sprint.sprint_name}</h1><Badge className="text-2xs bg-primary/10 text-primary border-0 capitalize">{sprint.status}</Badge></div>
-            <p className="text-sm text-muted-foreground">{new Date(sprint.start_date).toLocaleDateString()} — {new Date(sprint.end_date).toLocaleDateString()}</p>
-          </div>
+      <PageHeader
+        title={sprint.sprint_name}
+        description={`${new Date(sprint.start_date).toLocaleDateString()} — ${new Date(sprint.end_date).toLocaleDateString()}`}
+        breadcrumbs={[
+          { label: "Projects", href: "/projects" },
+          { label: "Sprint", href: `/project/${sprint.project_id}` },
+          { label: sprint.sprint_name },
+        ]}
+        actions={
           <div className="flex items-center gap-2">
             {isAdmin && (
               <>
                 <Button size="sm" variant="outline" className="gap-1.5" onClick={openEdit}>
-                  <Pencil className="w-4 h-4" /> Edit Sprint
+                  <Pencil className="w-4 h-4" /> Edit
                 </Button>
                 <Button size="sm" variant="outline" className="gap-1.5 text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
-                  <Trash2 className="w-4 h-4" /> Delete Sprint
+                  <Trash2 className="w-4 h-4" /> Delete
                 </Button>
               </>
             )}
-            <Button size="sm" className="gap-1.5" onClick={openCreateTask} disabled={!isAdmin}> <Plus className="w-4 h-4" />Add Task</Button>
+            <Button size="sm" className="gap-1.5" onClick={openCreateTask} disabled={!isAdmin}>
+              <Plus className="w-4 h-4" /> Add task
+            </Button>
           </div>
-        </motion.div>
+        }
+      />
+
+      <div className="space-y-4 h-full flex flex-col">
+        <div className="flex-shrink-0">
+        </div>
 
         <div className="bg-card border border-border rounded-lg p-3 flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
@@ -546,11 +568,20 @@ const SprintBoard = () => {
               </div>
               <div className="flex-1 overflow-y-auto p-2 space-y-2">
                 {groupedTasks[column.id]?.map((task) => (
-                  <div key={task.task_id} className="bg-card border border-border rounded-md p-3 cursor-pointer hover:shadow-sm transition-all group">
+                  <div
+                    key={task.task_id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setViewTask(task)}
+                    onKeyDown={(e) => e.key === "Enter" && setViewTask(task)}
+                    className="bg-card border border-border rounded-md p-3 cursor-pointer hover:shadow-sm transition-all group"
+                  >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <p className="text-sm font-medium leading-tight">{task.title}</p>
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-3.5 h-3.5" /></Button></DropdownMenuTrigger>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="w-3.5 h-3.5" /></Button>
+                        </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-44">
                           <DropdownMenuItem className="text-xs" onClick={() => openEditTask(task)}>
                             <Pencil className="w-3 h-3 mr-2" /> Edit

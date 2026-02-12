@@ -1,4 +1,6 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { TaskDetailSheet } from "@/components/tasks/TaskDetailSheet";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -146,29 +148,14 @@ const Tasks = () => {
 
   return (
     <DashboardLayout>
-      {/* View task (get by task_id) */}
-      <Dialog open={viewTaskId != null} onOpenChange={(open) => !open && setViewTaskId(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Task details</DialogTitle>
-            <DialogDescription>Task by task_id</DialogDescription>
-          </DialogHeader>
-          {viewedTask ? (
-            <div className="space-y-3 text-sm">
-              <p><span className="text-muted-foreground">Title:</span> {viewedTask.title}</p>
-              {viewedTask.description && <p><span className="text-muted-foreground">Description:</span> {viewedTask.description}</p>}
-              <p><span className="text-muted-foreground">Status:</span> <Badge variant="outline" className="capitalize">{viewedTask.status}</Badge></p>
-              <p><span className="text-muted-foreground">Sprint ID:</span> {viewedTask.sprint_id}</p>
-              <p><span className="text-muted-foreground">Assigned to:</span> {getUserName(viewedTask.assigned_to_user_id)}</p>
-              <div className="pt-2">
-                <Button size="sm" variant="outline" onClick={() => { setEditTaskItem(viewedTask); setViewTaskId(null); openEdit(viewedTask); }}>Edit</Button>
-              </div>
-            </div>
-          ) : (
-            <div className="py-4"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <TaskDetailSheet
+        task={viewTaskId != null ? (viewedTask ?? tasks.find((t) => t.task_id === viewTaskId)) ?? undefined : undefined}
+        open={viewTaskId != null}
+        onOpenChange={(open) => !open && setViewTaskId(null)}
+        getUserName={getUserName}
+        onEdit={(t) => { setViewTaskId(null); openEdit(t); }}
+        onStatusChange={(taskId, status) => handleStatusChange(taskId, status)}
+      />
 
       {/* Edit task */}
       <Dialog open={!!editTaskItem} onOpenChange={(open) => !open && setEditTaskItem(null)}>
@@ -259,81 +246,66 @@ const Tasks = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold">Tasks</h1>
-            <p className="text-sm text-muted-foreground">
-              {isAdmin ? "All tasks" : "Your assigned tasks"} · {tasks.length} total
-            </p>
-          </div>
-        </div>
+      <PageHeader
+        title="Tasks"
+        description={isAdmin ? "All tasks" : "Your assigned tasks"}
+        breadcrumbs={[{ label: "Tasks" }]}
+      />
 
+      <div className="space-y-4">
         {tasks.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <p>{isAdmin ? "No tasks yet." : "You have no assigned tasks."}</p>
           </div>
         ) : (
           <div className="rounded-lg border border-border bg-card overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm data-table">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  <th className="text-left p-3 font-medium">Title</th>
-                  <th className="text-left p-3 font-medium">Status</th>
-                  <th className="text-left p-3 font-medium">Sprint</th>
-                  <th className="text-left p-3 font-medium">Assigned to</th>
-                  <th className="text-left p-3 font-medium w-[200px]">Actions</th>
+                  <th className="text-left p-2 font-medium text-muted-foreground uppercase tracking-wider text-xs w-24">Key</th>
+                  <th className="text-left p-2 font-medium text-muted-foreground uppercase tracking-wider text-xs">Title</th>
+                  <th className="text-left p-2 font-medium text-muted-foreground uppercase tracking-wider text-xs">Status</th>
+                  <th className="text-left p-2 font-medium text-muted-foreground uppercase tracking-wider text-xs">Sprint</th>
+                  <th className="text-left p-2 font-medium text-muted-foreground uppercase tracking-wider text-xs">Assignee</th>
+                  <th className="text-left p-2 font-medium text-muted-foreground uppercase tracking-wider text-xs w-28">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {tasks.map((task) => (
-                  <tr key={task.task_id} className="border-b border-border hover:bg-muted/30">
-                    <td className="p-3">
-                      <button
-                        type="button"
-                        className="font-medium text-primary hover:underline text-left"
-                        onClick={() => setViewTaskId(task.task_id)}
-                      >
-                        {task.title}
-                      </button>
+                  <tr key={task.task_id} className="border-b border-border hover:bg-muted/30 cursor-pointer" onClick={() => setViewTaskId(task.task_id)}>
+                    <td className="p-2 font-mono text-xs text-muted-foreground">TASK-{task.task_id}</td>
+                    <td className="p-2">
+                      <span className="font-medium text-foreground">{task.title}</span>
                       {task.description && (
                         <p className="text-xs text-muted-foreground truncate max-w-xs mt-0.5">{task.description}</p>
                       )}
                     </td>
-                    <td className="p-3">
-                      <select
-                        className="rounded border border-input bg-background px-2 py-1 text-xs"
-                        value={task.status}
-                        onChange={(e) => handleStatusChange(task.task_id, e.target.value as TaskStatus)}
-                      >
-                        {TASK_STATUS_OPTIONS.map((s) => (
-                          <option key={s} value={s}>{s.replace("_", " ")}</option>
-                        ))}
-                      </select>
+                    <td className="p-2">
+                      <Badge variant="secondary" className="text-2xs font-normal capitalize">{task.status.replace("_", " ")}</Badge>
                     </td>
-                    <td className="p-3">
+                    <td className="p-2">
                       <Button
                         variant="link"
                         className="h-auto p-0 text-xs"
-                        onClick={() => navigate(`/sprint/${task.sprint_id}`)}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/sprint/${task.sprint_id}`); }}
                       >
                         Sprint {task.sprint_id}
                       </Button>
                     </td>
-                    <td className="p-3 text-muted-foreground">{getUserName(task.assigned_to_user_id)}</td>
-                    <td className="p-3">
+                    <td className="p-2 text-muted-foreground text-xs">{getUserName(task.assigned_to_user_id)}</td>
+                    <td className="p-2" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(task)}>
-                          <Pencil className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(task)}>
+                          <Pencil className="w-3.5 h-3.5" />
                         </Button>
                         {isAdmin && (
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
                             onClick={() => openDelete(task.task_id)}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         )}
                       </div>

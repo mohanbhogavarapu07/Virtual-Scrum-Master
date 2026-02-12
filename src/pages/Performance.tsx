@@ -56,6 +56,7 @@ const Performance = () => {
   const { data: userProjectCounts = {}, isLoading: countsLoading } = useUserProjectCounts();
 
   const [selectedProjectId, setSelectedProjectId] = useState<number>(0);
+  const [selectedUserId, setSelectedUserId] = useState<number>(0);
   const { data: projectSprints = [] } = useProjectSprints(selectedProjectId);
   const { data: projectMembers = [], isLoading: membersLoading } =
     useProjectMembers(selectedProjectId);
@@ -83,19 +84,21 @@ const Performance = () => {
     );
   }, [user, tasks, isAdmin, userProjectCounts, projectsList.length]);
 
-  // By user (admin) — one row per user with task and project counts
-  const byUserStats = useMemo((): UserStats[] => {
-    if (!isAdmin || usersList.length === 0) return [];
-    return usersList.map((u) =>
+  // By user (admin) — only the selected user's stats (show after selecting a user)
+  const selectedUserStats = useMemo((): UserStats[] => {
+    if (!isAdmin || !selectedUserId) return [];
+    const u = usersList.find((x) => x.user_id === selectedUserId);
+    if (!u) return [];
+    return [
       computeUserStats(
         tasks,
         u.user_id,
         u.full_name,
         u.email,
         userProjectCounts[u.user_id] ?? 0
-      )
-    );
-  }, [isAdmin, usersList, tasks, userProjectCounts]);
+      ),
+    ];
+  }, [isAdmin, selectedUserId, usersList, tasks, userProjectCounts]);
 
   // By project (admin) — for selected project, each member's task stats in this project
   const byProjectStats = useMemo((): UserStats[] => {
@@ -257,14 +260,29 @@ const Performance = () => {
 
             {isAdmin && (
               <>
-                {/* Performance by user */}
+                {/* Performance by user — select a user to view their performance */}
                 <section>
                   <h2 className="text-lg font-medium mb-3">Performance by user (admin)</h2>
                   <p className="text-muted-foreground text-sm mb-3">
-                    How many tasks each user has performed and completion accuracy.
+                    Select a user to view their task and project performance.
                   </p>
+                  <div className="flex gap-2 items-center mb-3">
+                    <label className="text-sm text-muted-foreground">User</label>
+                    <select
+                      className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm w-64"
+                      value={selectedUserId || ""}
+                      onChange={(e) => setSelectedUserId(Number(e.target.value))}
+                    >
+                      <option value="">Select user</option>
+                      {usersList.map((u) => (
+                        <option key={u.user_id} value={u.user_id}>
+                          {u.full_name} ({u.email})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <StatsTable
-                    rows={byUserStats}
+                    rows={selectedUserStats}
                     loading={tasksLoading || countsLoading}
                     showProjects={true}
                   />
