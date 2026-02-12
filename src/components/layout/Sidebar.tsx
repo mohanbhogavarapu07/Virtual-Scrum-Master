@@ -1,30 +1,62 @@
-import { LayoutDashboard, FolderKanban, BarChart3, Settings, ChevronDown } from "lucide-react";
 import logo from "@/assets/logo.png";
-import { NavLink } from "react-router-dom";
-import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { useProjects } from "@/hooks/useApiHooks";
+import { cn } from "@/lib/utils";
+import { Activity, BarChart3, ChevronDown, ChevronLeft, FolderKanban, LayoutDashboard, ListTodo, Settings } from "lucide-react";
+import { NavLink } from "react-router-dom";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Projects", href: "/projects", icon: FolderKanban },
+  { name: "Tasks", href: "/tasks", icon: ListTodo },
+  { name: "Performance", href: "/performance", icon: Activity },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
-export const Sidebar = () => {
+interface SidebarProps {
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+}
+
+export const Sidebar = ({ isOpen, onToggle, onClose }: SidebarProps) => {
   const { user } = useAuth();
-  const { data: projects = [] } = useProjects();
+  const { data: projectsRaw = [] } = useProjects();
+  const projects = Array.isArray(projectsRaw) ? projectsRaw : [];
 
   return (
-    <div className="flex h-screen w-60 flex-col bg-sidebar border-r border-sidebar-border">
-      <div className="flex h-14 items-center gap-2.5 border-b border-sidebar-border px-4">
-        <img src={logo} alt="Virtual Scrum Master" className="w-8 h-8 rounded-md" />
-        <div className="flex flex-col">
-          <span className="text-sm font-semibold text-sidebar-foreground">Virtual Scrum Master</span>
-          <span className="text-2xs text-sidebar-muted">Enterprise</span>
+    <>
+      {/* Backdrop when sidebar is open (mobile / overlay) */}
+      {isOpen && (
+        <button
+          type="button"
+          aria-label="Close menu"
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={onClose}
+        />
+      )}
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-50 flex h-screen w-60 flex-col bg-sidebar border-r border-sidebar-border shadow-lg transition-transform duration-200 ease-out md:relative md:z-auto md:shadow-none",
+          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0 md:w-0 md:overflow-hidden md:border-0"
+        )}
+      >
+        <div className="flex h-14 items-center gap-2.5 border-b border-sidebar-border px-4 flex-shrink-0">
+          <img src={logo} alt="Virtual Scrum Master" className="w-8 h-8 rounded-md flex-shrink-0" />
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-sm font-semibold text-sidebar-foreground truncate">Virtual Scrum Master</span>
+            <span className="text-2xs text-sidebar-muted">Enterprise</span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close menu"
+            className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-muted hover:text-sidebar-foreground flex-shrink-0"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
         </div>
-      </div>
 
       <div className="px-3 py-3 border-b border-sidebar-border">
         <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors text-left">
@@ -44,6 +76,7 @@ export const Sidebar = () => {
           <NavLink
             key={item.name}
             to={item.href}
+            onClick={onClose}
             className={({ isActive }) =>
               cn(
                 "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
@@ -67,6 +100,7 @@ export const Sidebar = () => {
               <NavLink
                 key={project.project_id}
                 to={`/project/${project.project_id}`}
+                onClick={onClose}
                 className={({ isActive }) =>
                   cn(
                     "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
@@ -95,6 +129,7 @@ export const Sidebar = () => {
           </div>
         </div>
       </div>
-    </div>
+      </aside>
+    </>
   );
 };

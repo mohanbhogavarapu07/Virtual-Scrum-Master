@@ -9,18 +9,21 @@ import {
     tasksApi,
     usersApi,
 } from "@/lib/api";
-import type { ApiBacklogItem, ApiProject, ApiSprint, ApiTask, ProjectMember, TaskStatus } from "@/types";
+import type { ApiBacklogItem, ApiPerformanceLog, ApiProject, ApiSprint, ApiTask, ApiUser, ProjectMember, TaskStatus } from "@/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // ---- Projects ----
-/** Backend returns { projects, count }; we normalize to projects array. */
-export const useProjects = () =>
-  useQuery({
+/** Backend returns { projects, count }; we normalize to projects array. Only run when authenticated so token is available. */
+export const useProjects = () => {
+  const { isAuthenticated } = useAuth();
+  return useQuery({
     queryKey: ["projects"],
     queryFn: projectsApi.list,
+    enabled: isAuthenticated,
     select: (data: ApiProject[] | { projects?: ApiProject[]; count?: number }) =>
       Array.isArray(data) ? data : (data?.projects ?? []),
   });
+};
 
 export const useProject = (projectId: number) =>
   useQuery({
@@ -51,12 +54,50 @@ export const useProjectMembers = (projectId: number) =>
     },
   });
 
+/** For each user, number of projects they are a member of. Used for performance "projects contributing". Admin only. */
+export const useUserProjectCounts = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  const { data: projects = [] } = useProjects();
+  return useQuery({
+    queryKey: ["userProjectCounts", projects.length],
+    queryFn: async (): Promise<Record<number, number>> => {
+      const list = Array.isArray(projects) ? projects : (projects as { projects?: ApiProject[] })?.projects ?? [];
+      const counts: Record<number, number> = {};
+      await Promise.all(
+        list.map(async (p) => {
+          const data = await projectsApi.listMembers(p.project_id);
+          const raw = Array.isArray(data) ? data : (data as { members?: unknown[] })?.members ?? [];
+          (raw as { user_id?: number; employee_id?: number }[]).forEach((m) => {
+            const id = m?.user_id ?? m?.employee_id;
+            if (id) counts[id] = (counts[id] ?? 0) + 1;
+          });
+        })
+      );
+      return counts;
+    },
+    enabled: isAdmin && (Array.isArray(projects) ? projects.length > 0 : false),
+  });
+};
+
 export const useCreateProject = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Parameters<typeof projectsApi.create>[0]) =>
       projectsApi.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
+  });
+};
+
+export const useUpdateProject = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, data }: { projectId: number; data: Parameters<typeof projectsApi.update>[1] }) =>
+      projectsApi.update(projectId, data),
+    onSuccess: (_, { projectId }) => {
+      qc.invalidateQueries({ queryKey: ["projects"] });
+      qc.invalidateQueries({ queryKey: ["projects", projectId] });
+    },
   });
 };
 
@@ -112,6 +153,18 @@ export const useCreateSprint = () => {
     mutationFn: ({ projectId, data }: { projectId: number; data: Parameters<typeof sprintsApi.create>[1] }) =>
       sprintsApi.create(projectId, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sprints"] }),
+  });
+};
+
+export const useUpdateSprint = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sprintId, data }: { sprintId: number; data: Parameters<typeof sprintsApi.update>[1] }) =>
+      sprintsApi.update(sprintId, data),
+    onSuccess: (_, { sprintId }) => {
+      qc.invalidateQueries({ queryKey: ["sprints"] });
+      qc.invalidateQueries({ queryKey: ["sprints", sprintId] });
+    },
   });
 };
 
@@ -240,14 +293,22 @@ export const useSendChat = () => {
 };
 
 // ---- Performance ----
+const perfListSelect = (data: { performance_logs?: ApiPerformanceLog[]; count?: number } | ApiPerformanceLog[]) =>
+  Array.isArray(data) ? data : (data?.performance_logs ?? []);
+
 export const useMyPerformance = () =>
-  useQuery({ queryKey: ["performance", "me"], queryFn: performanceApi.myLogs });
+  useQuery({
+    queryKey: ["performance", "me"],
+    queryFn: performanceApi.myLogs,
+    select: perfListSelect,
+  });
 
 export const useProjectPerformance = (projectId: number) =>
   useQuery({
     queryKey: ["performance", "project", projectId],
     queryFn: () => performanceApi.byProject(projectId),
     enabled: !!projectId,
+    select: perfListSelect,
   });
 
 export const useUserPerformance = (userId: number) =>
@@ -255,6 +316,7 @@ export const useUserPerformance = (userId: number) =>
     queryKey: ["performance", "user", userId],
     queryFn: () => performanceApi.byUser(userId),
     enabled: !!userId,
+    select: perfListSelect,
   });
 
 export const useCreatePerformanceLog = () => {
@@ -280,20 +342,29 @@ export const useEmployeeDashboard = () =>
     enabled: useAuth().user?.role === "EMPLOYEE",
   });
 
-/** Role-aware dashboard: admin -> /dashboard/admin, employee -> /dashboard/employee. Avoids 403 for employees. */
+/** Single dashboard endpoint: GET /dashboard returns role-appropriate data. Avoids 403 (never calls /dashboard/admin with employee token). */
 export const useDashboard = () => {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const { user, isLoading: authLoading } = useAuth();
   return useQuery({
     queryKey: ["dashboard", user?.role],
-    queryFn: () => (isAdmin ? dashboardApi.admin() : dashboardApi.employee()),
-    enabled: !!user?.role,
+    queryFn: dashboardApi.get,
+    enabled: !authLoading && !!user?.role,
   });
 };
 
 // ---- Users (Admin) ----
-export const useUsers = () =>
-  useQuery({ queryKey: ["users"], queryFn: usersApi.list });
+/** Backend returns { users, count }; normalize to users array. Only runs for ADMIN and only after auth has loaded to avoid 403. */
+export const useUsers = () => {
+  const { user, isLoading: authLoading } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  return useQuery({
+    queryKey: ["users"],
+    queryFn: usersApi.list,
+    enabled: !authLoading && isAdmin,
+    select: (data: ApiUser[] | { users?: ApiUser[]; count?: number }) =>
+      Array.isArray(data) ? data : (data?.users ?? []),
+  });
+};
 
 export const useDeleteUser = () => {
   const qc = useQueryClient();
