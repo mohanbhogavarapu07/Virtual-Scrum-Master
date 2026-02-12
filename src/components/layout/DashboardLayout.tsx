@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 
@@ -7,7 +7,16 @@ interface DashboardLayoutProps {
 }
 
 export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Initialize from localStorage or default to false
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem("sidebarOpen");
+    return saved === "true";
+  });
+
+  // Persist sidebar state to localStorage
+  useEffect(() => {
+    localStorage.setItem("sidebarOpen", String(sidebarOpen));
+  }, [sidebarOpen]);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">

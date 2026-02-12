@@ -52,11 +52,9 @@ export const Sidebar = ({ isOpen, onToggle, onClose }: SidebarProps) => {
   return (
     <>
       {isOpen && (
-        <button
-          type="button"
-          aria-label="Close menu"
+        <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"
-          onClick={onClose}
+          aria-hidden="true"
         />
       )}
       <aside
@@ -80,7 +78,6 @@ export const Sidebar = ({ isOpen, onToggle, onClose }: SidebarProps) => {
               <NavLink
                 key={p.project_id}
                 to={`/project/${p.project_id}`}
-                onClick={onClose}
                 className={({ isActive }) =>
                   cn(
                     "flex items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors",
@@ -107,7 +104,6 @@ export const Sidebar = ({ isOpen, onToggle, onClose }: SidebarProps) => {
                 <NavLink
                   key={item.name}
                   to={item.href}
-                  onClick={onClose}
                   className={({ isActive }) =>
                     cn(
                       "flex items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors",
@@ -131,7 +127,6 @@ export const Sidebar = ({ isOpen, onToggle, onClose }: SidebarProps) => {
             <NavLink
               key={item.name}
               to={item.href}
-              onClick={onClose}
               className={({ isActive }) =>
                 cn(
                   "flex items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors",
