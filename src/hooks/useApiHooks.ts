@@ -114,8 +114,10 @@ export const useAssignMembers = () => {
   return useMutation({
     mutationFn: ({ projectId, employeeIds }: { projectId: number; employeeIds: number[] }) =>
       projectsApi.assignMembers(projectId, { employee_ids: employeeIds }),
-    onSuccess: (_, { projectId }) =>
-      qc.invalidateQueries({ queryKey: ["projects", projectId, "members"] }),
+    onSuccess: (_, { projectId }) => {
+      qc.invalidateQueries({ queryKey: ["projects", projectId, "members"] });
+      qc.invalidateQueries({ queryKey: ["users"] });
+    },
   });
 };
 
@@ -124,8 +126,10 @@ export const useRemoveMember = () => {
   return useMutation({
     mutationFn: ({ projectId, userId }: { projectId: number; userId: number }) =>
       projectsApi.removeMember(projectId, userId),
-    onSuccess: (_, { projectId }) =>
-      qc.invalidateQueries({ queryKey: ["projects", projectId, "members"] }),
+    onSuccess: (_, { projectId }) => {
+      qc.invalidateQueries({ queryKey: ["projects", projectId, "members"] });
+      qc.invalidateQueries({ queryKey: ["users"] });
+    },
   });
 };
 
@@ -354,17 +358,21 @@ export const useDashboard = () => {
 
 // ---- Users (Admin) ----
 /** Backend returns { users, count }; normalize to users array. Only runs for ADMIN and only after auth has loaded to avoid 403. */
-export const useUsers = () => {
+export const useUsers = (options?: { role?: string; unassigned?: boolean }) => {
   const { user, isLoading: authLoading } = useAuth();
   const isAdmin = user?.role === "ADMIN";
   return useQuery({
-    queryKey: ["users"],
-    queryFn: usersApi.list,
+    queryKey: ["users", options?.role ?? null, options?.unassigned ?? null],
+    queryFn: () => usersApi.list(options),
     enabled: !authLoading && isAdmin,
     select: (data: ApiUser[] | { users?: ApiUser[]; count?: number }) =>
       Array.isArray(data) ? data : (data?.users ?? []),
   });
 };
+
+/** Employees not assigned to any project (for project assign dialog). Admin only. */
+export const useUnassignedEmployees = () =>
+  useUsers({ role: "EMPLOYEE", unassigned: true });
 
 export const useDeleteUser = () => {
   const qc = useQueryClient();

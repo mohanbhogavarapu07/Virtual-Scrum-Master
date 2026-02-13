@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useAuth } from "@/context/AuthContext";
 import { useAllTasks, useDashboard, useProjects } from "@/hooks/useApiHooks";
 import { Bell, ChevronDown, FolderKanban, ListTodo, Menu, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -23,6 +24,8 @@ interface HeaderProps {
 
 export const Header = ({ onMenuClick }: HeaderProps) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const { data: projectsRaw = [] } = useProjects();
@@ -151,25 +154,27 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
       </Popover>
 
       <div className="flex items-center gap-1 flex-shrink-0 ml-auto">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" className="h-8 gap-1.5 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90">
-              <Plus className="h-4 w-4" />
-              <span className="hidden xs:inline">Create</span>
-              <ChevronDown className="h-3.5 w-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuLabel className="text-xs">Create new</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-sm cursor-pointer" onSelect={() => navigate("/projects")}>
-              Project
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-sm cursor-pointer" onSelect={() => navigate("/tasks")}>
-              Task
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {isAdmin && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" className="h-8 gap-1.5 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90">
+                <Plus className="h-4 w-4" />
+                <span className="hidden xs:inline">Create</span>
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel className="text-xs">Create new</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-sm cursor-pointer" onSelect={() => navigate("/projects?openCreate=1")}>
+                Project
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-sm cursor-pointer" onSelect={() => navigate("/tasks?openCreate=1")}>
+                Task
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

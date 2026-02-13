@@ -104,7 +104,14 @@ export const authApi = {
 // Users API (Admin only)
 // ==========================================
 export const usersApi = {
-  list: () => request<ApiUser[]>("/users"),
+  /** GET /users. Optional: role=EMPLOYEE|ADMIN, unassigned=true (only employees not in any project). */
+  list: (params?: { role?: string; unassigned?: boolean }) => {
+    const search = new URLSearchParams();
+    if (params?.role) search.set("role", params.role);
+    if (params?.unassigned) search.set("unassigned", "true");
+    const qs = search.toString();
+    return request<ApiUser[]>(qs ? `/users?${qs}` : "/users");
+  },
 
   getById: (userId: number) => request<ApiUser>(`/users/${userId}`),
 
