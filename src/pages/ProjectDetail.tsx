@@ -39,21 +39,25 @@ import {
     useProjectMembers,
     useProjectSprints,
     useRemoveMember,
+    useUnassignedEmployees,
     useUpdateBacklogItem,
     useUpdateSprint,
-    useUsers,
 } from "@/hooks/useApiHooks";
 import type { ApiBacklogItem, ApiSprint } from "@/types";
 import { Calendar, Loader2, Package, Pencil, Plus, Trash2, TrendingUp, Users } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 const ProjectDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const tabFromUrl = searchParams.get("tab") || "sprints";
-  const activeTab = ["sprints", "backlog", "team"].includes(tabFromUrl) ? tabFromUrl : "sprints";
+  // Employees can only access sprints and team tabs
+  const allowedTabs = isAdmin ? ["sprints", "backlog", "team"] : ["sprints", "team"];
+  const activeTab = allowedTabs.includes(tabFromUrl) ? tabFromUrl : "sprints";
   const projectId = Number(id);
 
   const { data: project, isLoading: projLoading } = useProject(projectId);
@@ -62,13 +66,10 @@ const ProjectDetail = () => {
   const { data: members = [] } = useProjectMembers(projectId);
   const { data: backlogRaw = [], isLoading: backlogLoading } = useProjectBacklog(projectId);
   const backlog = Array.isArray(backlogRaw) ? backlogRaw : [];
-  const { data: usersRaw } = useUsers();
-  const users = Array.isArray(usersRaw) ? usersRaw : [];
+  const { data: unassignedEmployeesRaw = [] } = useUnassignedEmployees();
   const assignMembers = useAssignMembers();
   const removeMember = useRemoveMember();
-  const { user } = useAuth();
   const { toast } = useToast();
-  const isAdmin = user?.role === "ADMIN";
   const [assignOpen, setAssignOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
@@ -274,17 +275,7 @@ const ProjectDetail = () => {
     }
   };
 
-  const availableEmployees = useMemo(
-    () =>
-      isAdmin
-        ? users.filter(
-            (u) =>
-              u.role === "EMPLOYEE" &&
-              !members.some((m) => m.user_id === u.user_id),
-          )
-        : [],
-    [isAdmin, users, members],
-  );
+  const availableEmployees = isAdmin ? (Array.isArray(unassignedEmployeesRaw) ? unassignedEmployeesRaw : []) : [];
 
   const toggleSelect = (userId: number) => {
     setSelectedIds((prev) =>
@@ -365,7 +356,7 @@ const ProjectDetail = () => {
         />
 
         {/* Quick Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className={`grid gap-4 ${isAdmin ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
               <CardTitle className="text-sm font-medium">Team Members</CardTitle>
@@ -384,15 +375,17 @@ const ProjectDetail = () => {
               <div className="text-2xl font-bold">{sprints.length}</div>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium">Backlog Items</CardTitle>
-              <Package className="w-4 h-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{backlog.length}</div>
-            </CardContent>
-          </Card>
+          {isAdmin && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-sm font-medium">Backlog Items</CardTitle>
+                <Package className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{backlog.length}</div>
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
               <CardTitle className="text-sm font-medium">Duration</CardTitle>
@@ -415,7 +408,7 @@ const ProjectDetail = () => {
         >
           <TabsList className="h-9">
             <TabsTrigger value="sprints" className="text-sm">Sprints</TabsTrigger>
-            <TabsTrigger value="backlog" className="text-sm">Backlog</TabsTrigger>
+            {isAdmin && <TabsTrigger value="backlog" className="text-sm">Backlog</TabsTrigger>}
             <TabsTrigger value="team" className="text-sm">Team</TabsTrigger>
           </TabsList>
 

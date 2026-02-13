@@ -27,10 +27,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userData = await authApi.me();
       setUser(userData);
       // Refresh token so JWT role matches DB (e.g. if role was changed in Supabase from EMPLOYEE to ADMIN)
-      const refreshed = await authApi.refresh();
-      setToken(refreshed.token);
-      if (refreshed.user) setUser(refreshed.user);
-    } catch {
+      // If refresh fails, keep the user logged in with existing token
+      try {
+        const refreshed = await authApi.refresh();
+        setToken(refreshed.token);
+        if (refreshed.user) setUser(refreshed.user);
+      } catch (refreshError) {
+        // Refresh failed, but user is still authenticated - don't sign them out
+        console.warn("Token refresh failed, using existing token:", refreshError);
+      }
+    } catch (error) {
+      // Only sign out if /auth/me fails (token is invalid/expired)
+      console.error("Authentication failed:", error);
       clearToken();
       setUser(null);
     } finally {

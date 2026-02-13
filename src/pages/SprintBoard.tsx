@@ -265,7 +265,19 @@ const SprintBoard = () => {
         onOpenChange={(open) => !open && setViewTask(null)}
         getUserName={getUserName}
         onEdit={(t) => { setViewTask(null); openEditTask(t); }}
-        onStatusChange={(taskId, status) => updateStatus.mutate({ taskId, status })}
+        onDelete={isAdmin ? (t) => { setViewTask(null); setDeleteTaskId(t.task_id); } : undefined}
+        onStatusChange={(taskId, status) =>
+          updateStatus.mutate(
+            { taskId, status },
+            {
+              onSuccess: () => {
+                setViewTask((prev) =>
+                  prev && prev.task_id === taskId ? { ...prev, status } : prev
+                );
+              },
+            }
+          )
+        }
       />
       {/* Edit sprint dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

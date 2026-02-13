@@ -33,6 +33,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ isOpen, onToggle, onClose }: SidebarProps) => {
   const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const { pathname } = useLocation();
   const { id: projectIdParam } = useParams();
   const projectId = projectIdParam ? Number(projectIdParam) : null;
@@ -40,12 +41,11 @@ export const Sidebar = ({ isOpen, onToggle, onClose }: SidebarProps) => {
   const projects = Array.isArray(projectsRaw) ? projectsRaw : [];
 
   const isProjectRoute = pathname.startsWith("/project/") && projectId;
-  const projectNav = isProjectRoute
+  const projectNav = isProjectRoute && isAdmin
     ? [
-        { name: "Overview", href: `/project/${projectId}`, icon: LayoutGrid },
+        { name: "Sprints", href: `/project/${projectId}?tab=sprints`, icon: LayoutGrid },
         { name: "Backlog", href: `/project/${projectId}?tab=backlog`, icon: List },
-        { name: "Board", href: `/project/${projectId}?tab=sprints`, icon: LayoutGrid },
-        { name: "People", href: `/project/${projectId}?tab=people`, icon: Users },
+        { name: "Team", href: `/project/${projectId}?tab=team`, icon: Users },
       ]
     : [];
 

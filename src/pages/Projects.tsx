@@ -29,8 +29,8 @@ import type { ApiProject } from "@/types";
 import { motion } from "framer-motion";
 import { ChevronRight, LayoutGrid, List, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import type React from "react";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const emptyForm = () => ({
   project_name: "",
@@ -50,6 +50,7 @@ const projectToForm = (p: ApiProject) => ({
 
 const Projects = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: projectsRaw = [], isLoading, isError, error, refetch } = useProjects();
   const projects = Array.isArray(projectsRaw) ? projectsRaw : [];
   const createProject = useCreateProject();
@@ -71,6 +72,20 @@ const Projects = () => {
     setForm({ ...emptyForm(), created_by_admin_id: adminId });
     setCreateOpen(true);
   };
+
+  // Open create dialog when navigating from header "+ Create > Project"
+  useEffect(() => {
+    if (searchParams.get("openCreate") === "1" && isAdmin) {
+      setSearchParams((p) => {
+        const next = new URLSearchParams(p);
+        next.delete("openCreate");
+        return next;
+      }, { replace: true });
+      setForm({ ...emptyForm(), created_by_admin_id: adminId });
+      setCreateOpen(true);
+    }
+  }, [searchParams.get("openCreate"), isAdmin, adminId]);
+
   const openEdit = (e: React.MouseEvent, project: ApiProject) => {
     e.stopPropagation();
     setForm(projectToForm(project));
