@@ -45,7 +45,7 @@ import {
 } from "@/hooks/useApiHooks";
 import type { ApiBacklogItem, ApiSprint } from "@/types";
 import { Calendar, Loader2, Package, Pencil, Plus, Trash2, TrendingUp, Users } from "lucide-react";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 const ProjectDetail = () => {
@@ -275,7 +275,13 @@ const ProjectDetail = () => {
     }
   };
 
-  const availableEmployees = isAdmin ? (Array.isArray(unassignedEmployeesRaw) ? unassignedEmployeesRaw : []) : [];
+  // Filter out employees already assigned to this project
+  const availableEmployees = useMemo(() => {
+    if (!isAdmin) return [];
+    const unassigned = Array.isArray(unassignedEmployeesRaw) ? unassignedEmployeesRaw : [];
+    const memberIds = new Set(members.map((m) => m.user_id));
+    return unassigned.filter((emp) => !memberIds.has(emp.user_id));
+  }, [isAdmin, unassignedEmployeesRaw, members]);
 
   const toggleSelect = (userId: number) => {
     setSelectedIds((prev) =>
