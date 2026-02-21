@@ -163,7 +163,7 @@ const Projects = () => {
             {filteredProjects.map((project, index) => (
               <motion.div key={project.project_id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 * index }}
                 className="bg-card border border-border rounded-lg p-4 cursor-pointer hover:shadow-md hover:border-[hsl(var(--primary)/0.3)] transition-all group"
-                onClick={() => navigate(`/project/${project.project_id}`)}
+                onClick={() => navigate(isAdmin ? `/project/${project.project_id}/dashboard` : `/project/${project.project_id}`)}
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
@@ -198,7 +198,7 @@ const Projects = () => {
               <thead><tr><th>Project</th><th>Start</th><th>End</th>{isAdmin && <th className="w-24">Actions</th>}<th className="w-8"></th></tr></thead>
               <tbody>
                 {filteredProjects.map((project) => (
-                  <tr key={project.project_id} className="cursor-pointer" onClick={() => navigate(`/project/${project.project_id}`)}>
+                  <tr key={project.project_id} className="cursor-pointer" onClick={() => navigate(isAdmin ? `/project/${project.project_id}/dashboard` : `/project/${project.project_id}`)}>
                     <td>
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-[hsl(var(--primary)/0.1)] flex items-center justify-center flex-shrink-0"><FolderKanban className="w-4 h-4 text-[hsl(var(--primary))]" /></div>

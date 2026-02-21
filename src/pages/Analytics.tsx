@@ -7,19 +7,33 @@ import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend,
+  Tooltip, ResponsiveContainer,
 } from "recharts";
-import { CheckCircle2, Clock, FolderKanban, Target, TrendingUp, Zap } from "lucide-react";
+import { CheckCircle2, Clock, FolderKanban, Target, TrendingUp, Zap, Calendar, AlertCircle } from "lucide-react";
 import { useMemo } from "react";
+import { useParams } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
+import { useProject, useProjectSprints } from "@/hooks/useApiHooks";
 
 const Analytics = () => {
-  const { data: tasks = [], isLoading } = useAllTasks();
+  const { id: projectIdParam } = useParams();
+  const projectId = projectIdParam ? Number(projectIdParam) : null;
+  const { data: tasksRaw = [], isLoading } = useAllTasks();
+  const allTasks = Array.isArray(tasksRaw) ? tasksRaw : [];
+  const { data: project } = useProject(projectId ?? 0);
+  const { data: projectSprintsRaw = [] } = useProjectSprints(projectId ?? 0);
+  const projectSprints = Array.isArray(projectSprintsRaw) ? projectSprintsRaw : [];
+  const projectSprintIds = useMemo(() => projectSprints.map((s) => s.sprint_id), [projectSprints]);
+  const tasks = useMemo(() => {
+    if (projectId != null) return allTasks.filter((t) => projectSprintIds.includes(t.sprint_id));
+    return allTasks;
+  }, [allTasks, projectId, projectSprintIds]);
   const { data: projects = [] } = useProjects();
   const { data: dash } = useDashboard();
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
   const adminDash = dash && "total_projects" in dash ? dash : null;
+  const isProjectScoped = isAdmin && projectId != null;
 
   const todoTasks = tasks.filter(t => t.status === "TODO").length;
   const inProgressTasks = tasks.filter(t => t.status === "IN_PROGRESS").length;
@@ -39,13 +53,37 @@ const Analytics = () => {
     { status: "Done", count: doneTasks, fill: "hsl(var(--success))" },
   ];
 
-  // Sprint status breakdown
-  const sprintsByStatus = adminDash?.sprints_by_status ?? {};
+  const _sprintStatus = (s: { status?: string }, status: string) => (s.status ?? "").toUpperCase() === status.toUpperCase();
+  const sprintsByStatus = isProjectScoped
+    ? { ACTIVE: projectSprints.filter((s) => _sprintStatus(s, "ACTIVE")).length, COMPLETED: projectSprints.filter((s) => _sprintStatus(s, "COMPLETED")).length, PLANNED: projectSprints.filter((s) => _sprintStatus(s, "PLANNED")).length }
+    : (adminDash?.sprints_by_status ?? {});
   const sprintData = useMemo(() =>
     Object.entries(sprintsByStatus).map(([status, count]) => ({
       name: status, value: count as number,
-      color: status === "ACTIVE" ? "hsl(var(--primary))" : status === "COMPLETED" ? "hsl(var(--success))" : "hsl(var(--muted-foreground))",
+      color: status.toUpperCase() === "ACTIVE" ? "hsl(var(--primary))" : status.toUpperCase() === "COMPLETED" ? "hsl(var(--success))" : "hsl(var(--muted-foreground))",
     })), [sprintsByStatus]);
+
+  const activeSprint = useMemo(() => {
+    const active = projectSprints.find((s) => _sprintStatus(s, "ACTIVE"));
+    if (active) return active;
+    const sorted = [...projectSprints].sort((a, b) => new Date(b.end_date).getTime() - new Date(a.end_date).getTime());
+    return sorted[0] ?? null;
+  }, [projectSprints]);
+
+  const forecastMessage = useMemo(() => {
+    if (!activeSprint || totalTasks === 0) return null;
+    const endDate = new Date(activeSprint.end_date);
+    const now = new Date();
+    const daysTotal = Math.max(1, Math.ceil((endDate.getTime() - new Date(activeSprint.start_date).getTime()) / (24 * 60 * 60 * 1000)));
+    const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
+    const remainingTasks = todoTasks + inProgressTasks;
+    const pctTimeElapsed = Math.min(100, Math.round(((daysTotal - daysRemaining) / daysTotal) * 100));
+    const onTrack = completionRate >= pctTimeElapsed - 15;
+    if (daysRemaining <= 0) return { text: "Sprint period ended.", variant: "muted" as const };
+    if (remainingTasks === 0) return { text: `All tasks complete. Sprint ends ${endDate.toLocaleDateString()}.`, variant: "success" as const };
+    if (onTrack) return { text: `On track: ${remainingTasks} task(s) left, ${daysRemaining} day(s) to ${endDate.toLocaleDateString()}.`, variant: "success" as const };
+    return { text: `At risk: ${remainingTasks} task(s) remaining with ${daysRemaining} day(s) left. Consider reprioritizing.`, variant: "warning" as const };
+  }, [activeSprint, totalTasks, todoTasks, inProgressTasks, completionRate]);
 
   if (isLoading) return <PageLoading />;
 
@@ -53,7 +91,7 @@ const Analytics = () => {
     { title: "Total Tasks", value: totalTasks, icon: Zap, color: "text-[hsl(var(--accent))]", bg: "bg-[hsl(var(--accent)/0.1)]" },
     { title: "Completed", value: doneTasks, icon: CheckCircle2, color: "text-[hsl(var(--success))]", bg: "bg-[hsl(var(--success)/0.1)]" },
     { title: "In Progress", value: inProgressTasks, icon: Target, color: "text-[hsl(var(--primary))]", bg: "bg-[hsl(var(--primary)/0.1)]" },
-    { title: "Projects", value: (Array.isArray(projects) ? projects : []).length, icon: FolderKanban, color: "text-[hsl(var(--primary))]", bg: "bg-[hsl(var(--primary)/0.1)]" },
+    { title: "Projects", value: isProjectScoped ? 1 : (Array.isArray(projects) ? projects : []).length, icon: FolderKanban, color: "text-[hsl(var(--primary))]", bg: "bg-[hsl(var(--primary)/0.1)]" },
   ];
 
   const tooltipStyle = { backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' };
@@ -63,8 +101,8 @@ const Analytics = () => {
       <div className="space-y-4">
         <PageHeader
           title="Analytics"
-          description="Performance metrics and insights"
-          breadcrumbs={[{ label: "Analytics" }]}
+          description={isProjectScoped && project ? `${project.project_name} — Metrics` : "Performance metrics and insights"}
+          breadcrumbs={isProjectScoped && project ? [{ label: "Projects", href: "/projects" }, { label: project.project_name, href: `/project/${projectId}` }, { label: "Analytics" }] : [{ label: "Analytics" }]}
         />
 
         {/* Metric cards */}
@@ -101,6 +139,32 @@ const Analytics = () => {
             <span>{todoTasks} pending · {inProgressTasks} active</span>
           </div>
         </motion.div>
+
+        {/* Sprint forecast / outlook (project-scoped when we have sprint dates) */}
+        {isProjectScoped && (activeSprint || forecastMessage) && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
+            className="bg-card border border-border rounded-lg p-4"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Calendar className="w-4 h-4 text-[hsl(var(--primary))]" />
+              <h3 className="text-sm font-semibold">Sprint forecast</h3>
+            </div>
+            {activeSprint && (
+              <p className="text-xs text-muted-foreground mb-2">
+                {activeSprint.sprint_name} · {new Date(activeSprint.start_date).toLocaleDateString()} – {new Date(activeSprint.end_date).toLocaleDateString()}
+              </p>
+            )}
+            {forecastMessage && (
+              <div className={forecastMessage.variant === "success" ? "text-[hsl(var(--success))]" : forecastMessage.variant === "warning" ? "text-[hsl(var(--warning))] flex items-center gap-2" : "text-muted-foreground"}>
+                {forecastMessage.variant === "warning" && <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+                <span className="text-sm">{forecastMessage.text}</span>
+              </div>
+            )}
+            {!forecastMessage && activeSprint && totalTasks > 0 && (
+              <p className="text-sm text-muted-foreground">{completionRate}% complete · Sprint ends {new Date(activeSprint.end_date).toLocaleDateString()}</p>
+            )}
+          </motion.div>
+        )}
 
         {/* Charts */}
         <div className="grid grid-cols-12 gap-4">

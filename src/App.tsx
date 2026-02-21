@@ -17,6 +17,13 @@ import Settings from "./pages/Settings";
 import SprintBoard from "./pages/SprintBoard";
 import Tasks from "./pages/Tasks";
 
+/** Admin must select a project first; redirect global routes to project list. */
+const AdminProjectRedirect = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
+  if (user?.role !== "ADMIN") return <>{children}</>;
+  return <Navigate to="/projects" replace />;
+};
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -67,7 +74,7 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const RootRedirect = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -78,7 +85,8 @@ const RootRedirect = () => {
       </div>
     );
   }
-  return <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <Navigate to={user?.role === "ADMIN" ? "/projects" : "/dashboard"} replace />;
 };
 
 const AppRoutes = () => (
@@ -86,13 +94,18 @@ const AppRoutes = () => (
     <Route path="/" element={<RootRedirect />} />
     <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
     <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-    <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+    {/* Admin: redirect global dashboard/tasks/performance/analytics to projects so they select a project first */}
+    <Route path="/dashboard" element={<ProtectedRoute><AdminProjectRedirect><Dashboard /></AdminProjectRedirect></ProtectedRoute>} />
+    <Route path="/tasks" element={<ProtectedRoute><AdminProjectRedirect><Tasks /></AdminProjectRedirect></ProtectedRoute>} />
+    <Route path="/performance" element={<ProtectedRoute><AdminProjectRedirect><Performance /></AdminProjectRedirect></ProtectedRoute>} />
+    <Route path="/analytics" element={<ProtectedRoute><AdminProjectRedirect><Analytics /></AdminProjectRedirect></ProtectedRoute>} />
     <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
     <Route path="/project/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
+    <Route path="/project/:id/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+    <Route path="/project/:id/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
+    <Route path="/project/:id/performance" element={<ProtectedRoute><Performance /></ProtectedRoute>} />
+    <Route path="/project/:id/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
     <Route path="/sprint/:id" element={<ProtectedRoute><SprintBoard /></ProtectedRoute>} />
-    <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
-    <Route path="/performance" element={<ProtectedRoute><Performance /></ProtectedRoute>} />
-    <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>

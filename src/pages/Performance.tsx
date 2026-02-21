@@ -15,6 +15,8 @@ import type { ApiTask, ProjectMember } from "@/types";
 import { motion } from "framer-motion";
 import { Activity, CheckCircle2, FolderKanban, Loader2, Target, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useProject } from "@/hooks/useApiHooks";
 
 type UserStats = {
   user_id: number;
@@ -35,18 +37,23 @@ function computeUserStats(tasks: ApiTask[], userId: number, fullName: string, em
 
 const Performance = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { id: projectIdParam } = useParams();
+  const projectIdFromUrl = projectIdParam ? Number(projectIdParam) : null;
   const isAdmin = user?.role === "ADMIN";
   const { data: tasksRaw = [], isLoading: tasksLoading } = useAllTasks();
   const tasks = Array.isArray(tasksRaw) ? tasksRaw : [];
   const { data: projects = [] } = useProjects();
   const projectsList = Array.isArray(projects) ? projects : [];
+  const { data: projectDetail } = useProject(projectIdFromUrl ?? 0);
   const { data: users = [] } = useUsers();
   const usersList = Array.isArray(users) ? users : [];
   const { data: userProjectCounts = {}, isLoading: countsLoading } = useUserProjectCounts();
-  const [selectedProjectId, setSelectedProjectId] = useState<number>(0);
+  const [selectedProjectId, setSelectedProjectId] = useState<number>(projectIdFromUrl ?? 0);
+  const selectedProjectIdEffective = projectIdFromUrl ?? selectedProjectId;
   const [selectedUserId, setSelectedUserId] = useState<number>(0);
-  const { data: projectSprints = [] } = useProjectSprints(selectedProjectId);
-  const { data: projectMembers = [], isLoading: membersLoading } = useProjectMembers(selectedProjectId);
+  const { data: projectSprints = [] } = useProjectSprints(selectedProjectIdEffective);
+  const { data: projectMembers = [], isLoading: membersLoading } = useProjectMembers(selectedProjectIdEffective);
   const sprintIds = useMemo(() => projectSprints.map((s) => s.sprint_id), [projectSprints]);
   const tasksInProject = useMemo(() => tasks.filter((t) => sprintIds.includes(t.sprint_id)), [tasks, sprintIds]);
 
@@ -64,13 +71,13 @@ const Performance = () => {
   }, [isAdmin, selectedUserId, usersList, tasks, userProjectCounts]);
 
   const byProjectStats = useMemo((): UserStats[] => {
-    if (!selectedProjectId || !projectMembers.length) return [];
+    if (!selectedProjectIdEffective || !projectMembers.length) return [];
     return (projectMembers as ProjectMember[]).map((m) => {
       const ut = tasksInProject.filter((t) => t.assigned_to_user_id === m.user_id);
       const completed = ut.filter((t) => t.status === "DONE").length;
       return { user_id: m.user_id, full_name: m.full_name, email: m.email, tasksAssigned: ut.length, tasksCompleted: completed, completionRate: ut.length ? Math.round((completed / ut.length) * 100) : 0, projectsContributing: 1 };
     });
-  }, [selectedProjectId, projectMembers, tasksInProject]);
+  }, [selectedProjectIdEffective, projectMembers, tasksInProject]);
 
   const loading = tasksLoading || (isAdmin && countsLoading);
   if (loading && !myStats) return <PageLoading />;
@@ -88,9 +95,9 @@ const Performance = () => {
     </div>
   );
 
-  const StatsTable = ({ rows, tableLoading, showProjects = true }: { rows: UserStats[]; tableLoading: boolean; showProjects?: boolean }) => {
+  const StatsTable = ({ rows, tableLoading, showProjects = true, emptyMessage }: { rows: UserStats[]; tableLoading: boolean; showProjects?: boolean; emptyMessage?: string }) => {
     if (tableLoading) return <div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-[hsl(var(--primary))]" /></div>;
-    if (!rows.length) return <p className="text-sm text-muted-foreground py-6 text-center">Select an option above to view performance data.</p>;
+    if (!rows.length) return <p className="text-sm text-muted-foreground py-6 text-center">{emptyMessage ?? "Select an option above to view performance data."}</p>;
     return (
       <div className="rounded-lg border border-border overflow-x-auto">
         <table className="w-full text-sm data-table">
@@ -141,8 +148,8 @@ const Performance = () => {
       <div className="space-y-6">
         <PageHeader
           title="Performance"
-          description="Task completion and team productivity metrics"
-          breadcrumbs={[{ label: "Performance" }]}
+          description={projectIdFromUrl && projectDetail ? `${projectDetail.project_name} — Team performance` : "Task completion and team productivity metrics"}
+          breadcrumbs={projectIdFromUrl && projectDetail ? [{ label: "Projects", href: "/projects" }, { label: projectDetail.project_name, href: `/project/${projectIdFromUrl}` }, { label: "Performance" }] : [{ label: "Performance" }]}
         />
 
         {/* My Performance */}
@@ -162,45 +169,65 @@ const Performance = () => {
 
         {isAdmin && (
           <>
-            {/* By User */}
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-              className="bg-card border border-border rounded-lg"
-            >
-              <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Performance by User</h3>
-                <select
-                  className="h-8 rounded-md border border-input bg-background px-3 text-xs w-56"
-                  value={selectedUserId || ""}
-                  onChange={(e) => setSelectedUserId(Number(e.target.value))}
+            {/* Project-scoped: show only users in this project and their performance metrics */}
+            {projectIdFromUrl ? (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+                className="bg-card border border-border rounded-lg"
+              >
+                <div className="px-4 py-3 border-b border-border">
+                  <h3 className="text-sm font-semibold">Users in this project</h3>
+                </div>
+                <div className="p-4">
+                  <StatsTable rows={byProjectStats} tableLoading={membersLoading} showProjects={false} emptyMessage="No users assigned to this project yet." />
+                </div>
+              </motion.div>
+            ) : (
+              <>
+                {/* Global Performance: By User */}
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+                  className="bg-card border border-border rounded-lg"
                 >
-                  <option value="">Select user...</option>
-                  {usersList.map((u) => <option key={u.user_id} value={u.user_id}>{u.full_name}</option>)}
-                </select>
-              </div>
-              <div className="p-4">
-                <StatsTable rows={selectedUserStats} tableLoading={tasksLoading || countsLoading} showProjects />
-              </div>
-            </motion.div>
+                  <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">Performance by User</h3>
+                    <select
+                      className="h-8 rounded-md border border-input bg-background px-3 text-xs w-56"
+                      value={selectedUserId || ""}
+                      onChange={(e) => setSelectedUserId(Number(e.target.value))}
+                    >
+                      <option value="">Select user...</option>
+                      {usersList.map((u) => <option key={u.user_id} value={u.user_id}>{u.full_name}</option>)}
+                    </select>
+                  </div>
+                  <div className="p-4">
+                    <StatsTable rows={selectedUserStats} tableLoading={tasksLoading || countsLoading} showProjects />
+                  </div>
+                </motion.div>
 
-            {/* By Project */}
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-              className="bg-card border border-border rounded-lg"
-            >
-              <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Performance by Project</h3>
-                <select
-                  className="h-8 rounded-md border border-input bg-background px-3 text-xs w-56"
-                  value={selectedProjectId || ""}
-                  onChange={(e) => setSelectedProjectId(Number(e.target.value))}
+                {/* By Project (when not on a project URL) */}
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+                  className="bg-card border border-border rounded-lg"
                 >
-                  <option value="">Select project...</option>
-                  {projectsList.map((p) => <option key={p.project_id} value={p.project_id}>{p.project_name}</option>)}
-                </select>
-              </div>
-              <div className="p-4">
-                <StatsTable rows={byProjectStats} tableLoading={membersLoading} showProjects={false} />
-              </div>
-            </motion.div>
+                  <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">Performance by Project</h3>
+                    <select
+                      className="h-8 rounded-md border border-input bg-background px-3 text-xs w-56"
+                      value={selectedProjectIdEffective || ""}
+                      onChange={(e) => {
+                        const id = Number(e.target.value);
+                        if (id) navigate(`/project/${id}/performance`);
+                        else setSelectedProjectId(id);
+                      }}
+                    >
+                      <option value="">Select project...</option>
+                      {projectsList.map((p) => <option key={p.project_id} value={p.project_id}>{p.project_name}</option>)}
+                    </select>
+                  </div>
+                  <div className="p-4">
+                    <StatsTable rows={byProjectStats} tableLoading={membersLoading} showProjects={false} />
+                  </div>
+                </motion.div>
+              </>
+            )}
           </>
         )}
       </div>

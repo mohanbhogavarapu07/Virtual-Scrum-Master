@@ -2,36 +2,57 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAuth } from "@/context/AuthContext";
-import { useAllTasks, useDashboard, useProjects } from "@/hooks/useApiHooks";
+import { useAllTasks, useDashboard, useProject, useProjectMembers, useProjectSprints, useProjects } from "@/hooks/useApiHooks";
 import { motion } from "framer-motion";
 import {
   AlertTriangle, CheckCircle2, Clock, FolderKanban, Loader2, ListTodo,
   Target, TrendingUp, Users, Zap, ArrowRight,
 } from "lucide-react";
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Progress } from "@/components/ui/progress";
 import { PageLoading } from "@/components/ui/page-loading";
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { id: projectIdParam } = useParams();
+  const projectId = projectIdParam ? Number(projectIdParam) : null;
   const isAdmin = user?.role === "ADMIN";
+  const isProjectScoped = isAdmin && projectId != null;
+
   const { data: dash, isLoading } = useDashboard();
   const { data: projects = [] } = useProjects();
   const { data: tasks = [] } = useAllTasks();
+  const { data: project } = useProject(projectId ?? 0);
+  const { data: projectSprintsRaw = [] } = useProjectSprints(projectId ?? 0);
+  const { data: projectMembers = [] } = useProjectMembers(projectId ?? 0);
+  const projectSprints = Array.isArray(projectSprintsRaw) ? projectSprintsRaw : [];
+  const projectSprintIds = useMemo(() => projectSprints.map((s) => s.sprint_id), [projectSprints]);
+
+  const tasksInScope = useMemo(() => {
+    if (isProjectScoped) {
+      return tasks.filter((t) => projectSprintIds.includes(t.sprint_id));
+    }
+    return tasks;
+  }, [tasks, isProjectScoped, projectSprintIds]);
 
   const adminDash = dash && "total_projects" in dash ? dash : null;
   const empDash = dash && "my_projects" in dash ? dash : null;
-  const totalProjects = isAdmin ? (adminDash?.total_projects ?? projects.length) : (empDash?.my_projects?.length ?? 0);
-  const totalTasks = isAdmin ? (adminDash?.total_tasks ?? tasks.length) : (empDash?.my_tasks?.length ?? 0);
-  const totalUsers = adminDash?.total_users ?? 0;
-  const tasksByStatus = adminDash?.tasks_by_status ?? {};
-  const doneTasks = tasksByStatus["DONE"] ?? tasks.filter((t) => t.status === "DONE").length;
-  const inProgressTasks = tasksByStatus["IN_PROGRESS"] ?? tasks.filter((t) => t.status === "IN_PROGRESS").length;
-  const todoTasks = tasksByStatus["TODO"] ?? tasks.filter((t) => t.status === "TODO").length;
-  const bottlenecks = adminDash?.bottlenecks ?? [];
-  const sprintsByStatus = adminDash?.sprints_by_status ?? {};
+  const totalProjects = isProjectScoped ? 1 : (isAdmin ? (adminDash?.total_projects ?? projects.length) : (empDash?.my_projects?.length ?? 0));
+  const totalTasks = isProjectScoped ? tasksInScope.length : (isAdmin ? (adminDash?.total_tasks ?? tasks.length) : (empDash?.my_tasks?.length ?? tasks.length));
+  const totalUsers = isProjectScoped ? projectMembers.length : (adminDash?.total_users ?? 0);
+  const tasksByStatus = isProjectScoped
+    ? { DONE: tasksInScope.filter((t) => t.status === "DONE").length, IN_PROGRESS: tasksInScope.filter((t) => t.status === "IN_PROGRESS").length, TODO: tasksInScope.filter((t) => t.status === "TODO").length }
+    : (adminDash?.tasks_by_status ?? {});
+  const doneTasks = tasksByStatus["DONE"] ?? tasksInScope.filter((t) => t.status === "DONE").length;
+  const inProgressTasks = tasksByStatus["IN_PROGRESS"] ?? tasksInScope.filter((t) => t.status === "IN_PROGRESS").length;
+  const todoTasks = tasksByStatus["TODO"] ?? tasksInScope.filter((t) => t.status === "TODO").length;
+  const bottlenecks = isProjectScoped ? [] : (adminDash?.bottlenecks ?? []);
+  const _sprintStatus = (s: { status?: string }, status: string) => (s.status ?? "").toUpperCase() === status.toUpperCase();
+  const sprintsByStatus = isProjectScoped
+    ? { ACTIVE: projectSprints.filter((s) => _sprintStatus(s, "ACTIVE")).length, COMPLETED: projectSprints.filter((s) => _sprintStatus(s, "COMPLETED")).length, PLANNED: projectSprints.filter((s) => _sprintStatus(s, "PLANNED")).length }
+    : (adminDash?.sprints_by_status ?? {});
   const completionRate = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
   const taskDistribution = useMemo(() => [
@@ -41,14 +62,15 @@ const Dashboard = () => {
   ], [doneTasks, inProgressTasks, todoTasks]);
 
   const recentTasks = useMemo(() => {
-    const allTasks = isAdmin ? tasks : (empDash?.my_tasks ?? tasks);
+    const allTasks = isAdmin ? tasksInScope : (empDash?.my_tasks ?? tasks);
     return [...allTasks].sort((a, b) => new Date(b.updated_at ?? b.created_at).getTime() - new Date(a.updated_at ?? a.created_at).getTime()).slice(0, 6);
-  }, [tasks, empDash, isAdmin]);
+  }, [tasksInScope, empDash, isAdmin, tasks]);
 
   const myProjects = useMemo(() => {
+    if (isProjectScoped && project) return [project];
     if (isAdmin) return (Array.isArray(projects) ? projects : []).slice(0, 5);
     return empDash?.my_projects?.slice(0, 5) ?? [];
-  }, [isAdmin, projects, empDash]);
+  }, [isProjectScoped, project, isAdmin, projects, empDash]);
 
   if (isLoading) return <PageLoading />;
 
@@ -66,8 +88,8 @@ const Dashboard = () => {
       <div className="space-y-4">
         <PageHeader
           title="Dashboard"
-          description={isAdmin ? "Admin Overview — Organization-wide metrics" : `Welcome back, ${user?.full_name}`}
-          breadcrumbs={[{ label: "Dashboard" }]}
+          description={isProjectScoped && project ? `${project.project_name} — Project metrics` : isAdmin ? "Admin Overview — Organization-wide metrics" : `Welcome back, ${user?.full_name}`}
+          breadcrumbs={isProjectScoped && project ? [{ label: "Projects", href: "/projects" }, { label: project.project_name, href: `/project/${projectId}` }, { label: "Dashboard" }] : [{ label: "Dashboard" }]}
         />
 
         {/* Metric Cards */}
@@ -236,7 +258,7 @@ const Dashboard = () => {
             </div>
             <div className="divide-y divide-border">
               {myProjects.map((p) => (
-                <Link key={p.project_id} to={`/project/${p.project_id}`} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
+                <Link key={p.project_id} to={isAdmin && isProjectScoped ? `/project/${p.project_id}/dashboard` : `/project/${p.project_id}`} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{p.project_name}</p>
                     {p.description && <p className="text-xs text-muted-foreground truncate mt-0.5">{p.description}</p>}

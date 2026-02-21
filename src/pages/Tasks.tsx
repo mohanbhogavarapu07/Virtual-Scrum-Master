@@ -18,25 +18,36 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import {
-  useAllTasks, useCreateTask, useDeleteTask, useProjectSprints, useProjects,
+  useAllTasks, useCreateTask, useDeleteTask, useProject, useProjectSprints, useProjects,
   useTask, useUpdateTask, useUpdateTaskStatus, useUsers,
 } from "@/hooks/useApiHooks";
 import type { ApiTask, TaskStatus } from "@/types";
 import { ListTodo, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 const TASK_STATUS_OPTIONS: TaskStatus[] = ["TODO", "IN_PROGRESS", "DONE"];
 
 const Tasks = () => {
   const navigate = useNavigate();
+  const { id: projectIdParam } = useParams();
+  const projectId = projectIdParam ? Number(projectIdParam) : null;
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: tasksRaw = [], isLoading: tasksLoading } = useAllTasks();
-  const tasks = Array.isArray(tasksRaw) ? tasksRaw : [];
+  const allTasks = Array.isArray(tasksRaw) ? tasksRaw : [];
   const { data: usersRaw } = useUsers();
   const users = Array.isArray(usersRaw) ? usersRaw : [];
   const { data: projectsRaw = [] } = useProjects();
   const projects = Array.isArray(projectsRaw) ? projectsRaw : [];
+  const { data: projectScopedSprintsRaw = [] } = useProjectSprints(projectId ?? 0);
+  const projectScopedSprints = Array.isArray(projectScopedSprintsRaw) ? projectScopedSprintsRaw : [];
+  const projectSprintIds = useMemo(() => projectScopedSprints.map((s) => s.sprint_id), [projectScopedSprints]);
+  const tasks = useMemo(() => {
+    if (projectId != null) {
+      return allTasks.filter((t) => projectSprintIds.includes(t.sprint_id));
+    }
+    return allTasks;
+  }, [allTasks, projectId, projectSprintIds]);
   const [viewTaskId, setViewTaskId] = useState<number | null>(null);
   const [editTaskItem, setEditTaskItem] = useState<ApiTask | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<number | null>(null);
@@ -44,8 +55,9 @@ const Tasks = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [createForm, setCreateForm] = useState({ projectId: null as number | null, sprintId: null as number | null, title: "", description: "", status: "TODO" as TaskStatus, assigned_to_user_id: undefined as number | undefined });
-  const { data: sprintsRaw = [] } = useProjectSprints(createForm.projectId ?? 0);
+  const { data: sprintsRaw = [] } = useProjectSprints(createForm.projectId ?? projectId ?? 0);
   const sprints = Array.isArray(sprintsRaw) ? sprintsRaw : [];
+  const { data: project } = useProject(projectId ?? 0);
   const updateTask = useUpdateTask();
   const updateStatus = useUpdateTaskStatus();
   const deleteTask = useDeleteTask();
@@ -59,9 +71,9 @@ const Tasks = () => {
   useEffect(() => {
     if (searchParams.get("openCreate") === "1") {
       setSearchParams((p) => { const next = new URLSearchParams(p); next.delete("openCreate"); return next; }, { replace: true });
-      setCreateForm({ projectId: null, sprintId: null, title: "", description: "", status: "TODO", assigned_to_user_id: isAdmin ? undefined : user?.user_id }); setCreateOpen(true);
+      setCreateForm({ projectId: projectId ?? null, sprintId: null, title: "", description: "", status: "TODO", assigned_to_user_id: isAdmin ? undefined : user?.user_id }); setCreateOpen(true);
     }
-  }, [searchParams.get("openCreate"), isAdmin, user?.user_id]);
+  }, [searchParams.get("openCreate"), isAdmin, user?.user_id, projectId]);
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +82,9 @@ const Tasks = () => {
     if (!title) { toast({ title: "Title is required", variant: "destructive" }); return; }
     try {
       await createTask.mutateAsync({ sprintId: createForm.sprintId, data: { title, description: createForm.description.trim() || undefined, status: createForm.status, assigned_to_user_id: createForm.assigned_to_user_id || undefined } });
-      toast({ title: "Task created" }); setCreateOpen(false); setCreateForm({ projectId: null, sprintId: null, title: "", description: "", status: "TODO", assigned_to_user_id: undefined });
+      toast({ title: "Task created" });
+      setCreateOpen(false);
+      setCreateForm((prev) => ({ ...prev, projectId: projectId ?? prev.projectId, sprintId: null, title: "", description: "", status: "TODO", assigned_to_user_id: undefined }));
     } catch (err) { toast({ title: "Failed to create task", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" }); }
   };
 
@@ -147,8 +161,11 @@ const Tasks = () => {
       </Dialog>
 
       <div className="space-y-4">
-        <PageHeader title="Tasks" description={isAdmin ? `${tasks.length} total tasks` : "Your assigned tasks"} breadcrumbs={[{ label: "Tasks" }]}
-          actions={isAdmin ? <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4" /> New Task</Button> : undefined}
+        <PageHeader
+          title="Tasks"
+          description={projectId ? `${tasks.length} tasks in this project` : isAdmin ? `${tasks.length} total tasks` : "Your assigned tasks"}
+          breadcrumbs={projectId ? [{ label: "Projects", href: "/projects" }, { label: project?.project_name ?? "Project", href: `/project/${projectId}` }, { label: "Tasks" }] : [{ label: "Tasks" }]}
+          actions={isAdmin ? <Button size="sm" className="gap-1.5" onClick={() => { setCreateForm((f) => ({ ...f, projectId: projectId ?? f.projectId, sprintId: null })); setCreateOpen(true); }}><Plus className="w-4 h-4" /> New Task</Button> : undefined}
         />
 
         {/* Filters */}
