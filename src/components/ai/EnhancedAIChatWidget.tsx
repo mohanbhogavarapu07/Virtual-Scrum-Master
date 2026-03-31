@@ -10,6 +10,7 @@ import { ChatMessage, TaskAction } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useSendChat } from "@/hooks/useApiHooks";
+import { useLocation } from "react-router-dom";
 
 const quickActions = [
   { label: "Sprint status", command: "show sprint progress" },
@@ -23,12 +24,15 @@ export const EnhancedAIChatWidget = () => {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: "1", content: "👋 Hi! I'm your Virtual Scrum Master. Ask me about tasks, sprints, or team performance.", role: "assistant", timestamp: new Date(), confidence: 0.95 },
+    { id: "1", content: "👋 Hi! I'm your Virtual Scrum Master. Ask me about tasks, sprints, or team performance.", role: "assistant", timestamp: new Date() },
   ]);
 
   const { user, isAuthenticated } = useAuth();
   const sendChat = useSendChat();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const match = location.pathname.match(/\/project\/(\d+)/);
+  const activeProjectId = match ? parseInt(match[1], 10) : 1;
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -43,15 +47,14 @@ export const EnhancedAIChatWidget = () => {
     setInput("");
     setIsTyping(true);
 
-    // Send to backend chat API (project_id=1 as default context)
-    sendChat.mutate({ project_id: 1, message: messageText }, {
-      onSuccess: (response) => {
+    // Send to backend chat API
+    sendChat.mutate({ project_id: activeProjectId, message: messageText }, {
+      onSuccess: (response: any) => {
         const aiMessage: ChatMessage = {
           id: `msg-${Date.now() + 1}`,
-          content: response.ai_response?.message ?? "I received your message. Let me process that.",
+          content: response.ai_message?.message ?? "I received your message. Let me process that.",
           role: "assistant",
-          timestamp: new Date(),
-          confidence: 0.9,
+          timestamp: new Date()
         };
         setMessages(prev => [...prev, aiMessage]);
         setIsTyping(false);

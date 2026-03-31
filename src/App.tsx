@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { EnhancedAIChatWidget } from "./components/ai/EnhancedAIChatWidget";
+import { AIAssistant } from "./components/ai/AIAssistant";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Analytics from "./pages/Analytics";
 import Dashboard from "./pages/Dashboard";
@@ -119,7 +119,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
           <AppRoutes />
-          <EnhancedAIChatWidget />
+          <AIAssistant />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
