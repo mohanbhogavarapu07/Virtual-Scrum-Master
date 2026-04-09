@@ -32,9 +32,6 @@ The only requirement is having Node.js & npm installed - [install with nvm](http
 
 
 
-- Vit
-
-## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/ab95a6b6-5c09-43ab-a65f-8634c3e321aa) and click on Share -> Publish.
 
