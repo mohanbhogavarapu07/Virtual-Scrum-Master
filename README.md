@@ -25,8 +25,7 @@ The only requirement is having Node.js & npm installed - [install with nvm](http
 
 
 
-e development server with auto-reloading and an instant preview.
-npm run dev
+
 ```
 
 **Edit a file directly in GitHub**
