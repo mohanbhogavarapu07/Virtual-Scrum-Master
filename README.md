@@ -30,9 +30,6 @@ The only requirement is having Node.js & npm installed - [install with nvm](http
 
 
 
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
 
 ## What technologies are used for this project?
 
