@@ -33,9 +33,7 @@ The only requirement is having Node.js & npm installed - [install with nvm](http
 
 
 
-Simply open [Lovable](https://lovable.dev/projects/ab95a6b6-5c09-43ab-a65f-8634c3e321aa) and click on Share -> Publish.
 
-## Can I connect a custom domain to my Lovable project?
 
 Yes, you can!
 
