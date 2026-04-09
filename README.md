@@ -31,7 +31,6 @@ The only requirement is having Node.js & npm installed - [install with nvm](http
 
 
 
-## What technologies are used for this project?
 
 This project is built with:
 
