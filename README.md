@@ -32,11 +32,7 @@ The only requirement is having Node.js & npm installed - [install with nvm](http
 
 
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- Vit
 
 ## How can I deploy this project?
 
