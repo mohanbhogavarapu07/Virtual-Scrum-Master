@@ -36,6 +36,3 @@ The only requirement is having Node.js & npm installed - [install with nvm](http
 
 
 
-n.
-
-Read more here: [Setting up a custo
