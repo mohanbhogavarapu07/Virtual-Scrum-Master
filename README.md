@@ -38,4 +38,4 @@ The only requirement is having Node.js & npm installed - [install with nvm](http
 
 n.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Read more here: [Setting up a custo
