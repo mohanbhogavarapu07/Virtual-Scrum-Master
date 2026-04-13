@@ -1,13 +1,13 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import logo from "@/assets/logo.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, ArrowRight, Sparkles, Shield, Zap } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import logo from "@/assets/logo.png";
+import { ArrowRight, Loader2, Shield, Sparkles, Zap } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const Login = () => {
   const navigate = useNavigate();
